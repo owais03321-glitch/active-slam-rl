@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+# ROS setup scripts may inspect variables that are initially unset.
+# Enable errexit and pipefail immediately; enable nounset after ROS is sourced.
+set -eo pipefail
 
 
 # ---------------------------------------------------------------------------
@@ -57,6 +59,9 @@ cd "$ROS_WS"
 
 source /opt/ros/jazzy/setup.bash
 source install/setup.bash
+
+# Safe to enforce undefined-variable errors after ROS environment setup.
+set -u
 
 
 # ---------------------------------------------------------------------------
