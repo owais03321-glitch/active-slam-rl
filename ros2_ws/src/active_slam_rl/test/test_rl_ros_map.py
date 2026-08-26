@@ -1,7 +1,9 @@
 import pytest
 from nav_msgs.msg import OccupancyGrid
 
+from active_slam_rl.rl_env import ActiveSlamEnv
 from active_slam_rl.rl_ros_map import (
+    eligible_frontier_candidates_from_occupancy_grid,
     frontier_candidates_from_occupancy_grid,
 )
 
@@ -111,3 +113,105 @@ def test_ros_map_propagates_invalid_data_size():
         frontier_candidates_from_occupancy_grid(
             msg
         )
+
+
+def make_two_frontier_map():
+    msg = make_map(
+        width=15,
+        height=10,
+        resolution=1.0,
+    )
+
+    for y in range(2, 7):
+        msg.data[y * msg.info.width + 3] = 0
+        msg.data[y * msg.info.width + 4] = -1
+
+        msg.data[y * msg.info.width + 10] = 0
+        msg.data[y * msg.info.width + 11] = -1
+
+    return msg
+
+
+def test_ros_map_eligibility_rejects_near_robot_candidate():
+    msg = make_two_frontier_map()
+
+    candidates = (
+        eligible_frontier_candidates_from_occupancy_grid(
+            msg,
+            robot_x=3.5,
+            robot_y=4.5,
+        )
+    )
+
+    assert len(candidates) == 1
+
+    candidate = candidates[0]
+
+    assert candidate.cell_x == 10
+    assert candidate.cell_y == 4
+    assert candidate.world_x == pytest.approx(10.5)
+    assert candidate.world_y == pytest.approx(4.5)
+
+
+def test_ros_map_eligibility_rejects_visited_candidate():
+    msg = make_two_frontier_map()
+
+    candidates = (
+        eligible_frontier_candidates_from_occupancy_grid(
+            msg,
+            robot_x=0.0,
+            robot_y=0.0,
+            visited_goals=[
+                (3.5, 4.5),
+            ],
+        )
+    )
+
+    assert len(candidates) == 1
+    assert candidates[0].cell_x == 10
+    assert candidates[0].cell_y == 4
+
+
+def test_ros_map_eligible_candidates_align_with_env_action_slots():
+    msg = make_two_frontier_map()
+
+    candidates = (
+        eligible_frontier_candidates_from_occupancy_grid(
+            msg,
+            robot_x=0.0,
+            robot_y=0.0,
+            visited_goals=[
+                (3.5, 4.5),
+            ],
+        )
+    )
+
+    env = ActiveSlamEnv(
+        max_candidates=4,
+    )
+
+    observation = env.set_frontier_state(
+        candidates=candidates,
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    assert len(candidates) == 1
+    assert candidates[0].world_x == pytest.approx(10.5)
+    assert candidates[0].world_y == pytest.approx(4.5)
+
+    assert observation['action_mask'].tolist() == [
+        1,
+        0,
+        0,
+        0,
+    ]
+
+    assert observation['candidates'][0, 0] == pytest.approx(
+        10.5
+    )
+    assert observation['candidates'][0, 1] == pytest.approx(
+        4.5
+    )
+
+    env.close()
