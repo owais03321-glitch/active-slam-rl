@@ -1,0 +1,29 @@
+# ROS 2 / colcon
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Training outputs
+runs/
+models/*.zip
+models/*.pt
+models/*.pth
+
+# Temporary files
+*.log
+*.tmp
