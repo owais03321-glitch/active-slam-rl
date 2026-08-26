@@ -145,6 +145,16 @@ class ActiveSlamEnv(gym.Env):
 
         return self._candidates[action]
 
+    def action_masks(self):
+        """Return the current valid-action mask for MaskablePPO."""
+
+        return self._observation[
+            'action_mask'
+        ].astype(
+            bool,
+            copy=True,
+        )
+
     def reset(
         self,
         *,

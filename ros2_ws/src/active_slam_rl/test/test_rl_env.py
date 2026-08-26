@@ -366,3 +366,122 @@ def test_action_candidate_mapping_copies_input_sequence():
     assert env.candidate_for_action(0) == original
 
     env.close()
+
+
+def test_environment_exposes_sb3_action_masks():
+    from sb3_contrib.common.maskable.utils import (
+        get_action_masks,
+        is_masking_supported,
+    )
+
+    from active_slam_rl.rl_frontier import FrontierCandidate
+
+    env = ActiveSlamEnv(
+        max_candidates=4,
+    )
+
+    env.set_frontier_state(
+        candidates=[
+            FrontierCandidate(
+                cell_x=1,
+                cell_y=1,
+                world_x=1.0,
+                world_y=0.0,
+                cluster_size=5,
+            ),
+            FrontierCandidate(
+                cell_x=2,
+                cell_y=1,
+                world_x=2.0,
+                world_y=0.0,
+                cluster_size=6,
+            ),
+        ],
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    assert is_masking_supported(env)
+
+    masks = get_action_masks(env)
+
+    assert masks.dtype == np.bool_
+
+    np.testing.assert_array_equal(
+        masks,
+        np.array(
+            [
+                True,
+                True,
+                False,
+                False,
+            ],
+            dtype=bool,
+        ),
+    )
+
+    env.close()
+
+
+def test_action_masks_returns_independent_copy():
+    from active_slam_rl.rl_frontier import FrontierCandidate
+
+    env = ActiveSlamEnv(
+        max_candidates=2,
+    )
+
+    env.set_frontier_state(
+        candidates=[
+            FrontierCandidate(
+                cell_x=1,
+                cell_y=1,
+                world_x=1.0,
+                world_y=0.0,
+                cluster_size=5,
+            ),
+        ],
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    masks = env.action_masks()
+
+    masks[0] = False
+
+    assert env.action_masks().tolist() == [
+        True,
+        False,
+    ]
+
+    env.close()
+
+
+def test_reset_clears_sb3_action_masks():
+    from active_slam_rl.rl_frontier import FrontierCandidate
+
+    env = ActiveSlamEnv(
+        max_candidates=2,
+    )
+
+    env.set_frontier_state(
+        candidates=[
+            FrontierCandidate(
+                cell_x=1,
+                cell_y=1,
+                world_x=1.0,
+                world_y=0.0,
+                cluster_size=5,
+            ),
+        ],
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    env.reset()
+
+    assert env.action_masks().tolist() == [
+        False,
+        False,
+    ]
+
+    env.close()
