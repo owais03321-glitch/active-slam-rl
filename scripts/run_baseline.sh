@@ -45,6 +45,9 @@ RUN_DIR="$PROJECT_DIR/experiments/baseline/runs/$RUN_ID"
 METRICS_LOG="$RUN_DIR/baseline_metrics.log"
 EXPLORER_LOG="$RUN_DIR/frontier_explorer.log"
 
+METRICS_EXECUTABLE="$ROS_WS/install/active_slam_rl/lib/active_slam_rl/baseline_metrics"
+EXPLORER_EXECUTABLE="$ROS_WS/install/active_slam_rl/lib/active_slam_rl/frontier_explorer"
+
 METRICS_PID=""
 EXPLORER_PID=""
 
@@ -110,6 +113,22 @@ if ! ros2 node list 2>/dev/null | grep -qx '/bt_navigator'; then
 fi
 
 
+if [ ! -x "$METRICS_EXECUTABLE" ]; then
+    echo "ERROR: baseline_metrics executable is missing:"
+    echo "  $METRICS_EXECUTABLE"
+    echo "Build the active_slam_rl package first."
+    exit 1
+fi
+
+
+if [ ! -x "$EXPLORER_EXECUTABLE" ]; then
+    echo "ERROR: frontier_explorer executable is missing:"
+    echo "  $EXPLORER_EXECUTABLE"
+    echo "Build the active_slam_rl package first."
+    exit 1
+fi
+
+
 cd "$PROJECT_DIR"
 
 GIT_COMMIT="$(git rev-parse HEAD)"
@@ -149,8 +168,10 @@ git_branch=$GIT_BRANCH
 ros_distro=${ROS_DISTRO:-unknown}
 start_timestamp_utc=$START_UTC
 simulation_launch_command=ros2 launch nav2_bringup tb3_simulation_launch.py slam:=True use_rviz:=False headless:=True
-metrics_command=ros2 run active_slam_rl baseline_metrics --ros-args -p use_sim_time:=true
-explorer_command=ros2 run active_slam_rl frontier_explorer --ros-args -p use_sim_time:=true
+metrics_executable=$METRICS_EXECUTABLE
+metrics_arguments=--ros-args -p use_sim_time:=true -p output_dir=$RUN_DIR -p run_id=$RUN_ID
+explorer_executable=$EXPLORER_EXECUTABLE
+explorer_arguments=--ros-args -p use_sim_time:=true
 EOF
 
 
@@ -195,14 +216,14 @@ cleanup() {
 
     if [ -n "$EXPLORER_PID" ] && kill -0 "$EXPLORER_PID" 2>/dev/null; then
         echo "Stopping frontier_explorer..."
-        kill -INT -- "-$EXPLORER_PID" 2>/dev/null || true
+        kill -INT "$EXPLORER_PID" 2>/dev/null || true
     fi
 
     sleep 1
 
     if [ -n "$METRICS_PID" ] && kill -0 "$METRICS_PID" 2>/dev/null; then
         echo "Stopping baseline_metrics..."
-        kill -INT -- "-$METRICS_PID" 2>/dev/null || true
+        kill -INT "$METRICS_PID" 2>/dev/null || true
     fi
 
     # Allow baseline_metrics time to execute finalize() and write summary.json.
@@ -255,7 +276,7 @@ echo "===== STARTING METRICS COLLECTOR ====="
 
 cd "$ROS_WS"
 
-setsid ros2 run active_slam_rl baseline_metrics \
+"$METRICS_EXECUTABLE" \
     --ros-args \
     -p use_sim_time:=true \
     -p output_dir:="$RUN_DIR" \
@@ -298,7 +319,7 @@ echo "Initial map data is being saved."
 echo
 echo "===== STARTING FRONTIER EXPLORER ====="
 
-setsid ros2 run active_slam_rl frontier_explorer \
+"$EXPLORER_EXECUTABLE" \
     --ros-args \
     -p use_sim_time:=true \
     > "$EXPLORER_LOG" 2>&1 &

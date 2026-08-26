@@ -609,9 +609,13 @@ class BaselineMetrics(Node):
         self.csv_file.flush()
         self.csv_file.close()
 
-        self.get_logger().info(
-            f"Saved final summary: {self.summary_path}"
-        )
+        # SIGINT may invalidate the ROS context before finalize() runs.
+        # The files are already safely written above, so only publish the
+        # final informational log while the context is still valid.
+        if rclpy.ok():
+            self.get_logger().info(
+                f"Saved final summary: {self.summary_path}"
+            )
 
 
 def main(args=None):
@@ -623,9 +627,16 @@ def main(args=None):
         rclpy.spin(node)
 
     except KeyboardInterrupt:
-        node.get_logger().info(
-            "Metrics collection stopped by user."
-        )
+        # Normal interactive Ctrl+C shutdown.
+        pass
+
+    except Exception:
+        # On ROS 2 Jazzy, SIGINT can invalidate the rclpy context while
+        # the executor is waiting, causing spin() to raise RCLError
+        # instead of KeyboardInterrupt. Suppress only shutdown-related
+        # exceptions; real runtime errors must still propagate.
+        if rclpy.ok():
+            raise
 
     finally:
         node.finalize()
