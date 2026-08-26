@@ -26,6 +26,7 @@ setup(
         'console_scripts': [
 	    'map_monitor = active_slam_rl.map_monitor:main',
 	    'frontier_detector = active_slam_rl.frontier_detector:main',
+	    'nav2_goal_sender = active_slam_rl.nav2_goal_sender:main',
         ],
     },
 )
