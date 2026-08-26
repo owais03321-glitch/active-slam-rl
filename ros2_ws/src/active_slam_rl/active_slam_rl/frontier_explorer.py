@@ -6,6 +6,7 @@ from rclpy.action import ActionClient
 from rclpy.node import Node
 from rclpy.time import Time
 
+from action_msgs.msg import GoalStatus
 from nav_msgs.msg import OccupancyGrid
 from nav2_msgs.action import NavigateToPose
 from tf2_ros import Buffer, TransformException, TransformListener
@@ -37,6 +38,13 @@ class FrontierExplorer(Node):
 
         self.goal_active = False
         self.last_reported_distance = None
+
+        # Prevent the nearest-frontier policy from repeatedly returning
+        # to already completed frontier locations when SLAM publishes an
+        # unchanged map.
+        self.current_goal = None
+        self.visited_goals = deque(maxlen=100)
+        self.visited_goal_radius = 0.50
 
         self.get_logger().info(
             'Frontier Explorer started.'
@@ -72,18 +80,29 @@ class FrontierExplorer(Node):
             )
             return
 
-        # Ignore goals that are already extremely close.
+        # Ignore goals that are already extremely close to the robot,
+        # or are near frontier locations that were already completed.
         valid_goals = [
             goal for goal in goals
-            if math.hypot(
-                goal[0] - robot_x,
-                goal[1] - robot_y
-            ) > 0.35
+            if (
+                math.hypot(
+                    goal[0] - robot_x,
+                    goal[1] - robot_y
+                ) > 0.35
+                and all(
+                    math.hypot(
+                        goal[0] - visited_x,
+                        goal[1] - visited_y
+                    ) > self.visited_goal_radius
+                    for visited_x, visited_y
+                    in self.visited_goals
+                )
+            )
         ]
 
         if not valid_goals:
             self.get_logger().info(
-                'No useful frontier goals available.'
+                'No useful unvisited frontier goals available.'
             )
             return
 
@@ -265,6 +284,7 @@ class FrontierExplorer(Node):
         # callback cannot send another goal.
         self.goal_active = True
         self.last_reported_distance = None
+        self.current_goal = (x, y)
 
         future = self.nav_client.send_goal_async(
             goal,
@@ -289,6 +309,7 @@ class FrontierExplorer(Node):
             )
 
             self.goal_active = False
+            self.current_goal = None
             return
 
         self.get_logger().info(
@@ -343,12 +364,28 @@ class FrontierExplorer(Node):
             f'Status: {result.status}'
         )
 
+        if (
+            result.status == GoalStatus.STATUS_SUCCEEDED
+            and self.current_goal is not None
+        ):
+            self.visited_goals.append(
+                self.current_goal
+            )
+
+            self.get_logger().info(
+                'Recorded completed frontier: '
+                f'x={self.current_goal[0]:.2f}, '
+                f'y={self.current_goal[1]:.2f} | '
+                f'visited={len(self.visited_goals)}'
+            )
+
         self.goal_active = False
         self.last_reported_distance = None
+        self.current_goal = None
 
         self.get_logger().info(
-            'Waiting for updated map '
-            'before selecting next frontier...'
+            'Waiting for next map update '
+            'before selecting an unvisited frontier...'
         )
 
 
@@ -358,10 +395,24 @@ def main(args=None):
 
     node = FrontierExplorer()
 
-    rclpy.spin(node)
+    try:
+        rclpy.spin(node)
 
-    node.destroy_node()
-    rclpy.shutdown()
+    except KeyboardInterrupt:
+        # Normal interactive or runner-triggered SIGINT shutdown.
+        pass
+
+    except Exception:
+        # ROS 2 Jazzy may invalidate the rclpy context while the executor
+        # is waiting. Suppress only shutdown-related exceptions.
+        if rclpy.ok():
+            raise
+
+    finally:
+        node.destroy_node()
+
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':
