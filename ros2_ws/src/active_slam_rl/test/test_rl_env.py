@@ -232,3 +232,137 @@ def test_frontier_state_propagates_candidate_overflow():
         )
 
     env.close()
+
+
+def test_action_resolves_to_matching_frontier_candidate():
+    from active_slam_rl.rl_frontier import FrontierCandidate
+
+    env = ActiveSlamEnv(
+        max_candidates=4,
+    )
+
+    candidates = [
+        FrontierCandidate(
+            cell_x=2,
+            cell_y=3,
+            world_x=1.0,
+            world_y=2.0,
+            cluster_size=5,
+        ),
+        FrontierCandidate(
+            cell_x=7,
+            cell_y=8,
+            world_x=4.0,
+            world_y=5.0,
+            cluster_size=9,
+        ),
+    ]
+
+    env.set_frontier_state(
+        candidates=candidates,
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    assert env.candidate_for_action(0) == candidates[0]
+    assert env.candidate_for_action(1) == candidates[1]
+
+    env.close()
+
+
+def test_action_rejects_unused_candidate_slot():
+    from active_slam_rl.rl_frontier import FrontierCandidate
+
+    env = ActiveSlamEnv(
+        max_candidates=4,
+    )
+
+    env.set_frontier_state(
+        candidates=[
+            FrontierCandidate(
+                cell_x=2,
+                cell_y=3,
+                world_x=1.0,
+                world_y=2.0,
+                cluster_size=5,
+            ),
+        ],
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            'Action 1 selects an unavailable '
+            'frontier candidate slot'
+        ),
+    ):
+        env.candidate_for_action(1)
+
+    env.close()
+
+
+def test_reset_clears_action_candidate_mapping():
+    from active_slam_rl.rl_frontier import FrontierCandidate
+
+    env = ActiveSlamEnv(
+        max_candidates=2,
+    )
+
+    env.set_frontier_state(
+        candidates=[
+            FrontierCandidate(
+                cell_x=2,
+                cell_y=3,
+                world_x=1.0,
+                world_y=2.0,
+                cluster_size=5,
+            ),
+        ],
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    env.reset()
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            'Action 0 selects an unavailable '
+            'frontier candidate slot'
+        ),
+    ):
+        env.candidate_for_action(0)
+
+    env.close()
+
+
+def test_action_candidate_mapping_copies_input_sequence():
+    from active_slam_rl.rl_frontier import FrontierCandidate
+
+    env = ActiveSlamEnv(
+        max_candidates=2,
+    )
+
+    original = FrontierCandidate(
+        cell_x=2,
+        cell_y=3,
+        world_x=1.0,
+        world_y=2.0,
+        cluster_size=5,
+    )
+
+    candidates = [original]
+
+    env.set_frontier_state(
+        candidates=candidates,
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    candidates.clear()
+
+    assert env.candidate_for_action(0) == original
+
+    env.close()

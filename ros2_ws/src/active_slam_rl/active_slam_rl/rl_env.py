@@ -79,6 +79,8 @@ class ActiveSlamEnv(gym.Env):
             self._make_empty_observation()
         )
 
+        self._candidates = []
+
     def _make_empty_observation(self):
         return {
             'candidates': np.zeros(
@@ -110,14 +112,38 @@ class ActiveSlamEnv(gym.Env):
     ):
         """Update the environment observation from frontier state."""
 
+        candidate_list = list(candidates)
+
         self._observation = encode_frontier_observation(
-            candidates=candidates,
+            candidates=candidate_list,
             robot_x=robot_x,
             robot_y=robot_y,
             max_candidates=self.max_candidates,
         )
 
+        self._candidates = candidate_list
+
         return self._copy_observation()
+
+    def candidate_for_action(
+        self,
+        action,
+    ):
+        """Return the frontier candidate referenced by an RL action."""
+
+        if not self.action_space.contains(action):
+            raise ValueError(
+                f'Invalid action {action!r} for '
+                f'{self.action_space}.'
+            )
+
+        if self._observation['action_mask'][action] == 0:
+            raise ValueError(
+                f'Action {action} selects an unavailable '
+                'frontier candidate slot.'
+            )
+
+        return self._candidates[action]
 
     def reset(
         self,
@@ -130,6 +156,8 @@ class ActiveSlamEnv(gym.Env):
         self._observation = (
             self._make_empty_observation()
         )
+
+        self._candidates = []
 
         info = {}
 
