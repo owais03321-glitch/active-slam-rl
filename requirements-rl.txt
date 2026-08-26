@@ -1,0 +1,6 @@
+# Python dependencies for the RL Active SLAM layer.
+#
+# ROS 2 Jazzy Python packages are provided by the system ROS installation.
+# Create the virtual environment with --system-site-packages so rclpy and
+# ROS message packages remain available.
+gymnasium==1.3.0
