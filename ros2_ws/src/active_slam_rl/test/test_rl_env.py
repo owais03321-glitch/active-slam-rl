@@ -99,3 +99,136 @@ def test_nonpositive_candidate_capacity_is_rejected():
         ActiveSlamEnv(
             max_candidates=0,
         )
+
+
+def test_frontier_state_updates_environment_observation():
+    from active_slam_rl.rl_frontier import FrontierCandidate
+
+    env = ActiveSlamEnv(
+        max_candidates=4,
+    )
+
+    candidates = [
+        FrontierCandidate(
+            cell_x=10,
+            cell_y=20,
+            world_x=3.0,
+            world_y=4.0,
+            cluster_size=8,
+        ),
+        FrontierCandidate(
+            cell_x=30,
+            cell_y=40,
+            world_x=0.0,
+            world_y=2.0,
+            cluster_size=11,
+        ),
+    ]
+
+    observation = env.set_frontier_state(
+        candidates=candidates,
+        robot_x=1.0,
+        robot_y=1.0,
+    )
+
+    np.testing.assert_allclose(
+        observation['candidates'][0],
+        [
+            2.0,
+            3.0,
+            np.sqrt(13.0),
+            8.0,
+        ],
+        rtol=1e-6,
+    )
+
+    np.testing.assert_allclose(
+        observation['candidates'][1],
+        [
+            -1.0,
+            1.0,
+            np.sqrt(2.0),
+            11.0,
+        ],
+        rtol=1e-6,
+    )
+
+    np.testing.assert_array_equal(
+        observation['action_mask'],
+        np.array(
+            [1, 1, 0, 0],
+            dtype=np.int8,
+        ),
+    )
+
+    assert env.observation_space.contains(
+        observation
+    )
+
+    env.close()
+
+
+def test_frontier_state_return_is_independent_copy():
+    from active_slam_rl.rl_frontier import FrontierCandidate
+
+    env = ActiveSlamEnv(
+        max_candidates=2,
+    )
+
+    candidate = FrontierCandidate(
+        cell_x=1,
+        cell_y=1,
+        world_x=1.0,
+        world_y=0.0,
+        cluster_size=5,
+    )
+
+    observation = env.set_frontier_state(
+        candidates=[candidate],
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    observation['action_mask'][0] = 0
+    observation['candidates'][0, 0] = 999.0
+
+    internal_copy = env._copy_observation()
+
+    assert internal_copy['action_mask'][0] == 1
+    assert internal_copy['candidates'][0, 0] == pytest.approx(1.0)
+
+    env.close()
+
+
+def test_frontier_state_propagates_candidate_overflow():
+    from active_slam_rl.rl_frontier import FrontierCandidate
+
+    env = ActiveSlamEnv(
+        max_candidates=2,
+    )
+
+    candidates = [
+        FrontierCandidate(
+            cell_x=index,
+            cell_y=0,
+            world_x=float(index),
+            world_y=0.0,
+            cluster_size=5,
+        )
+        for index in range(3)
+    ]
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            'Frontier candidate count 3 exceeds '
+            'max_candidates=2'
+        ),
+    ):
+        env.set_frontier_state(
+            candidates=candidates,
+            robot_x=0.0,
+            robot_y=0.0,
+        )
+
+    env.close()

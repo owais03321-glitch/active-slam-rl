@@ -5,6 +5,7 @@ from gymnasium import spaces
 from active_slam_rl.rl_observation import (
     CANDIDATE_FEATURE_COUNT,
     DEFAULT_MAX_CANDIDATES,
+    encode_frontier_observation,
 )
 
 
@@ -99,6 +100,24 @@ class ActiveSlamEnv(gym.Env):
             for key, value
             in self._observation.items()
         }
+
+    def set_frontier_state(
+        self,
+        *,
+        candidates,
+        robot_x,
+        robot_y,
+    ):
+        """Update the environment observation from frontier state."""
+
+        self._observation = encode_frontier_observation(
+            candidates=candidates,
+            robot_x=robot_x,
+            robot_y=robot_y,
+            max_candidates=self.max_candidates,
+        )
+
+        return self._copy_observation()
 
     def reset(
         self,
