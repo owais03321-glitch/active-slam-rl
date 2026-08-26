@@ -3,4 +3,12 @@
 # ROS 2 Jazzy Python packages are provided by the system ROS installation.
 # Create the virtual environment with --system-site-packages so rclpy and
 # ROS message packages remain available.
+#
+# PyTorch is intentionally pinned to the CPU-only build because the current
+# training machine has no NVIDIA CUDA runtime.
+--extra-index-url https://download.pytorch.org/whl/cpu
+
 gymnasium==1.3.0
+torch==2.9.1+cpu
+stable-baselines3==2.9.0
+sb3-contrib==2.9.0
