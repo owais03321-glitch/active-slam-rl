@@ -2,6 +2,11 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
+from active_slam_rl.rl_observation import (
+    CANDIDATE_FEATURE_COUNT,
+    DEFAULT_MAX_CANDIDATES,
+)
+
 
 class ActiveSlamEnv(gym.Env):
     """Gymnasium environment scaffold for RL-based Active SLAM."""
@@ -11,38 +16,108 @@ class ActiveSlamEnv(gym.Env):
         'render_fps': 0,
     }
 
-    def __init__(self):
+    def __init__(
+        self,
+        *,
+        max_candidates=DEFAULT_MAX_CANDIDATES,
+    ):
         super().__init__()
 
-        # Temporary API-level spaces.
-        #
-        # These are intentionally minimal. They will be replaced only after
-        # the ROS observation and exploration-action contracts are defined
-        # and tested.
-        self.observation_space = spaces.Box(
-            low=np.array([0.0], dtype=np.float32),
-            high=np.array([1.0], dtype=np.float32),
+        if max_candidates <= 0:
+            raise ValueError(
+                'max_candidates must be greater than zero.'
+            )
+
+        self.max_candidates = max_candidates
+
+        float32_max = np.finfo(np.float32).max
+
+        candidate_low = np.tile(
+            np.array(
+                [
+                    -float32_max,  # relative x
+                    -float32_max,  # relative y
+                    0.0,           # distance
+                    0.0,           # cluster size
+                ],
+                dtype=np.float32,
+            ),
+            (
+                self.max_candidates,
+                1,
+            ),
+        )
+
+        candidate_high = np.full(
+            (
+                self.max_candidates,
+                CANDIDATE_FEATURE_COUNT,
+            ),
+            float32_max,
             dtype=np.float32,
         )
 
-        self.action_space = spaces.Discrete(1)
-
-        self._observation = np.array(
-            [0.0],
-            dtype=np.float32,
+        self.observation_space = spaces.Dict(
+            {
+                'candidates': spaces.Box(
+                    low=candidate_low,
+                    high=candidate_high,
+                    dtype=np.float32,
+                ),
+                'action_mask': spaces.MultiBinary(
+                    self.max_candidates
+                ),
+            }
         )
 
-    def reset(self, *, seed=None, options=None):
+        self.action_space = spaces.Discrete(
+            self.max_candidates
+        )
+
+        self._observation = (
+            self._make_empty_observation()
+        )
+
+    def _make_empty_observation(self):
+        return {
+            'candidates': np.zeros(
+                (
+                    self.max_candidates,
+                    CANDIDATE_FEATURE_COUNT,
+                ),
+                dtype=np.float32,
+            ),
+            'action_mask': np.zeros(
+                self.max_candidates,
+                dtype=np.int8,
+            ),
+        }
+
+    def _copy_observation(self):
+        return {
+            key: value.copy()
+            for key, value
+            in self._observation.items()
+        }
+
+    def reset(
+        self,
+        *,
+        seed=None,
+        options=None,
+    ):
         super().reset(seed=seed)
 
-        self._observation = np.array(
-            [0.0],
-            dtype=np.float32,
+        self._observation = (
+            self._make_empty_observation()
         )
 
         info = {}
 
-        return self._observation.copy(), info
+        return (
+            self._copy_observation(),
+            info,
+        )
 
     def step(self, action):
         if not self.action_space.contains(action):
@@ -51,7 +126,7 @@ class ActiveSlamEnv(gym.Env):
                 f'{self.action_space}.'
             )
 
-        observation = self._observation.copy()
+        observation = self._copy_observation()
         reward = 0.0
         terminated = False
         truncated = False
@@ -71,10 +146,20 @@ def main():
 
     observation, info = env.reset(seed=0)
 
-    print(f'observation={observation}')
+    print(
+        f'candidate_shape='
+        f'{observation["candidates"].shape}'
+    )
+    print(
+        f'action_mask_shape='
+        f'{observation["action_mask"].shape}'
+    )
     print(f'info={info}')
     print(f'action_space={env.action_space}')
-    print(f'observation_space={env.observation_space}')
+    print(
+        f'observation_space='
+        f'{env.observation_space}'
+    )
 
     env.close()
 
