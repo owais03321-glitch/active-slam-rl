@@ -215,3 +215,87 @@ def test_ros_map_eligible_candidates_align_with_env_action_slots():
     )
 
     env.close()
+
+
+def test_explored_area_counts_all_known_cells():
+    from nav_msgs.msg import OccupancyGrid
+
+    from active_slam_rl.rl_ros_map import (
+        explored_area_m2_from_occupancy_grid,
+    )
+
+    msg = OccupancyGrid()
+
+    msg.info.width = 3
+    msg.info.height = 2
+    msg.info.resolution = 0.5
+
+    msg.data = [
+        -1,
+        0,
+        100,
+        50,
+        -1,
+        0,
+    ]
+
+    assert (
+        explored_area_m2_from_occupancy_grid(
+            msg
+        )
+        == pytest.approx(1.0)
+    )
+
+
+def test_explored_area_rejects_wrong_data_size():
+    from nav_msgs.msg import OccupancyGrid
+
+    from active_slam_rl.rl_ros_map import (
+        explored_area_m2_from_occupancy_grid,
+    )
+
+    msg = OccupancyGrid()
+
+    msg.info.width = 2
+    msg.info.height = 2
+    msg.info.resolution = 0.05
+
+    msg.data = [
+        0,
+        0,
+        0,
+    ]
+
+    with pytest.raises(
+        ValueError,
+        match='expected 4',
+    ):
+        explored_area_m2_from_occupancy_grid(
+            msg
+        )
+
+
+def test_explored_area_rejects_nonpositive_resolution():
+    from nav_msgs.msg import OccupancyGrid
+
+    from active_slam_rl.rl_ros_map import (
+        explored_area_m2_from_occupancy_grid,
+    )
+
+    msg = OccupancyGrid()
+
+    msg.info.width = 1
+    msg.info.height = 1
+    msg.info.resolution = 0.0
+
+    msg.data = [
+        0,
+    ]
+
+    with pytest.raises(
+        ValueError,
+        match='resolution',
+    ):
+        explored_area_m2_from_occupancy_grid(
+            msg
+        )

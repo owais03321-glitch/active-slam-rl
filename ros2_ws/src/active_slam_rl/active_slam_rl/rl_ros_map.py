@@ -47,3 +47,38 @@ def eligible_frontier_candidates_from_occupancy_grid(
         min_robot_distance=min_robot_distance,
         visited_goal_radius=visited_goal_radius,
     )
+
+
+def explored_area_m2_from_occupancy_grid(msg):
+    """Return known occupancy-grid area in square meters."""
+
+    expected_size = (
+        msg.info.width
+        * msg.info.height
+    )
+
+    if len(msg.data) != expected_size:
+        raise ValueError(
+            f'Occupancy data has {len(msg.data)} cells; '
+            f'expected {expected_size}.'
+        )
+
+    resolution = float(
+        msg.info.resolution
+    )
+
+    if resolution <= 0.0:
+        raise ValueError(
+            'Occupancy grid resolution must be positive.'
+        )
+
+    known_cells = sum(
+        value != -1
+        for value in msg.data
+    )
+
+    return (
+        known_cells
+        * resolution
+        * resolution
+    )
