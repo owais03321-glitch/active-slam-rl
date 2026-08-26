@@ -24,6 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
+	    'map_monitor = active_slam_rl.map_monitor:main',
         ],
     },
 )
