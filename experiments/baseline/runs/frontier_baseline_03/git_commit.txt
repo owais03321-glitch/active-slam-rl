@@ -1,0 +1,7 @@
+commit 76c795950d9d59d3f690b6775df9f250d9b0d3cc
+Author:     Mohammad Owais <owais03321@gmail.com>
+AuthorDate: Wed Aug 26 19:34:28 2026 +0500
+Commit:     Mohammad Owais <owais03321@gmail.com>
+CommitDate: Wed Aug 26 19:34:28 2026 +0500
+
+    docs: define frontier baseline protocol

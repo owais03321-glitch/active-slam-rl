@@ -1,0 +1,26 @@
+{
+  "run_id": "frontier_baseline_01",
+  "algorithm": "frontier_baseline",
+  "collector_elapsed_s": 351.543,
+  "exploration_elapsed_s": 341.949,
+  "exploration_started": true,
+  "explored_area_m2": 21.39000063747168,
+  "initial_explored_area_m2": 2.9650000883638867,
+  "newly_explored_area_m2": 18.425000549107793,
+  "known_fraction": 0.7416782246879334,
+  "coverage_pct": null,
+  "path_length_m": 12.433792272896696,
+  "area_per_second": 0.053882305692099675,
+  "area_per_meter": 1.4818488313714868,
+  "target_area_m2": null,
+  "t90_s": null,
+  "t99_s": null,
+  "map_updates": 71,
+  "navigation": {
+    "goals_seen": 11,
+    "succeeded": 11,
+    "aborted": 0,
+    "canceled": 0,
+    "success_rate": 1.0
+  }
+}

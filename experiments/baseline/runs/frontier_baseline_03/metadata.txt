@@ -1,0 +1,15 @@
+run_id=frontier_baseline_03
+run_type=baseline
+algorithm=frontier_baseline
+world=nav2_tb3_default_simulation
+git_commit=76c795950d9d59d3f690b6775df9f250d9b0d3cc
+git_branch=main
+ros_distro=jazzy
+start_timestamp_utc=2026-08-26T14:58:59Z
+simulation_launch_command=ros2 launch nav2_bringup tb3_simulation_launch.py slam:=True use_rviz:=False headless:=True
+metrics_executable=/home/mohammad-owais/projects/active-slam-rl/ros2_ws/install/active_slam_rl/lib/active_slam_rl/baseline_metrics
+metrics_arguments=--ros-args -p use_sim_time:=true -p output_dir=/home/mohammad-owais/projects/active-slam-rl/experiments/baseline/runs/frontier_baseline_03 -p run_id=frontier_baseline_03
+explorer_executable=/home/mohammad-owais/projects/active-slam-rl/ros2_ws/install/active_slam_rl/lib/active_slam_rl/frontier_explorer
+explorer_arguments=--ros-args -p use_sim_time:=true
+
+end_timestamp_utc=2026-08-26T15:05:06Z

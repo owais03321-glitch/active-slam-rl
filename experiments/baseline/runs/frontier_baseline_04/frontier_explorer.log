@@ -1,0 +1,221 @@
+[INFO] [1787759412.838650186] [frontier_explorer]: Frontier Explorer started.
+[INFO] [1787759416.124884474] [frontier_explorer]: Frontier cells: 434 | Clusters: 3
+[INFO] [1787759416.126322408] [frontier_explorer]: Selected frontier: x=0.63, y=-0.44, distance=0.77 m
+[INFO] [1787759416.130677317] [frontier_explorer]: Frontier goal accepted.
+[INFO] [1787759416.133320404] [frontier_explorer]: Distance remaining: 0.00 m
+[INFO] [1787759416.152007250] [frontier_explorer]: Distance remaining: 0.70 m
+[INFO] [1787759418.062983776] [frontier_explorer]: Distance remaining: 0.48 m
+[INFO] [1787759418.881482382] [frontier_explorer]: Distance remaining: 0.28 m
+[INFO] [1787759419.991286077] [frontier_explorer]: Navigation finished. Status: 4
+[INFO] [1787759419.992063387] [frontier_explorer]: Recorded completed frontier: x=0.63, y=-0.44 | visited=1
+[INFO] [1787759419.992759060] [frontier_explorer]: Waiting for next map update before selecting an unvisited frontier...
+[INFO] [1787759421.127571433] [frontier_explorer]: Frontier cells: 434 | Clusters: 3
+[INFO] [1787759421.128704738] [frontier_explorer]: Selected frontier: x=0.03, y=0.86, distance=1.21 m
+[INFO] [1787759421.131319684] [frontier_explorer]: Frontier goal accepted.
+[INFO] [1787759421.132484681] [frontier_explorer]: Distance remaining: 0.00 m
+[INFO] [1787759421.152929709] [frontier_explorer]: Distance remaining: 1.37 m
+[INFO] [1787759422.451234034] [frontier_explorer]: Distance remaining: 1.16 m
+[INFO] [1787759426.341986263] [frontier_explorer]: Distance remaining: 0.94 m
+[INFO] [1787759427.061596167] [frontier_explorer]: Distance remaining: 0.74 m
+[INFO] [1787759427.922030572] [frontier_explorer]: Distance remaining: 0.51 m
+[INFO] [1787759428.881803935] [frontier_explorer]: Distance remaining: 0.29 m
+[INFO] [1787759429.791743369] [frontier_explorer]: Distance remaining: 0.06 m
+[INFO] [1787759431.100777106] [frontier_explorer]: Navigation finished. Status: 4
+[INFO] [1787759431.101124337] [frontier_explorer]: Recorded completed frontier: x=0.03, y=0.86 | visited=2
+[INFO] [1787759431.101616613] [frontier_explorer]: Waiting for next map update before selecting an unvisited frontier...
+[INFO] [1787759431.124670412] [frontier_explorer]: Frontier cells: 809 | Clusters: 17
+[INFO] [1787759431.125704573] [frontier_explorer]: Selected frontier: x=1.38, y=0.46, distance=1.40 m
+[INFO] [1787759431.128463784] [frontier_explorer]: Frontier goal accepted.
+[INFO] [1787759431.130064045] [frontier_explorer]: Distance remaining: 0.00 m
+[INFO] [1787759431.148211602] [frontier_explorer]: Distance remaining: 1.69 m
+[INFO] [1787759432.639208725] [frontier_explorer]: Distance remaining: 1.48 m
+[INFO] [1787759434.008512126] [frontier_explorer]: Distance remaining: 1.28 m
+[INFO] [1787759434.909125499] [frontier_explorer]: Distance remaining: 1.08 m
+[INFO] [1787759435.738015032] [frontier_explorer]: Distance remaining: 0.86 m
+[INFO] [1787759436.791662029] [frontier_explorer]: Distance remaining: 0.63 m
+[INFO] [1787759437.878110246] [frontier_explorer]: Distance remaining: 0.43 m
+[INFO] [1787759440.239031870] [frontier_explorer]: Navigation finished. Status: 4
+[INFO] [1787759440.240058734] [frontier_explorer]: Recorded completed frontier: x=1.38, y=0.46 | visited=3
+[INFO] [1787759440.240741711] [frontier_explorer]: Waiting for next map update before selecting an unvisited frontier...
+[INFO] [1787759441.133942260] [frontier_explorer]: Frontier cells: 1279 | Clusters: 7
+[INFO] [1787759441.135857804] [frontier_explorer]: Selected frontier: x=2.58, y=-0.54, distance=1.59 m
+[INFO] [1787759441.140699175] [frontier_explorer]: Frontier goal accepted.
+[INFO] [1787759441.142788196] [frontier_explorer]: Distance remaining: 0.00 m
+[INFO] [1787759441.161515051] [frontier_explorer]: Distance remaining: 1.89 m
+[INFO] [1787759445.679452955] [frontier_explorer]: Distance remaining: 1.68 m
+[INFO] [1787759446.790219124] [frontier_explorer]: Distance remaining: 1.48 m
+[INFO] [1787759448.341158027] [frontier_explorer]: Distance remaining: 1.28 m
+[INFO] [1787759449.530283738] [frontier_explorer]: Distance remaining: 1.06 m
+[INFO] [1787759450.401019881] [frontier_explorer]: Distance remaining: 0.83 m
+[INFO] [1787759451.479018531] [frontier_explorer]: Distance remaining: 0.61 m
+[INFO] [1787759452.731672986] [frontier_explorer]: Distance remaining: 0.40 m
+[INFO] [1787759454.639382714] [frontier_explorer]: Navigation finished. Status: 4
+[INFO] [1787759454.639752698] [frontier_explorer]: Recorded completed frontier: x=2.58, y=-0.54 | visited=4
+[INFO] [1787759454.640034780] [frontier_explorer]: Waiting for next map update before selecting an unvisited frontier...
+[INFO] [1787759456.134208181] [frontier_explorer]: Frontier cells: 505 | Clusters: 18
+[INFO] [1787759456.135466323] [frontier_explorer]: Selected frontier: x=2.12, y=-0.79, distance=0.72 m
+[INFO] [1787759456.139803893] [frontier_explorer]: Frontier goal accepted.
+[INFO] [1787759456.141279138] [frontier_explorer]: Distance remaining: 0.00 m
+[INFO] [1787759456.160019046] [frontier_explorer]: Distance remaining: 0.77 m
+[INFO] [1787759460.588730935] [frontier_explorer]: Distance remaining: 0.54 m
+[INFO] [1787759461.708851040] [frontier_explorer]: Distance remaining: 0.30 m
+[INFO] [1787759464.899438400] [frontier_explorer]: Navigation finished. Status: 4
+[INFO] [1787759464.900288391] [frontier_explorer]: Recorded completed frontier: x=2.12, y=-0.79 | visited=5
+[INFO] [1787759464.900994173] [frontier_explorer]: Waiting for next map update before selecting an unvisited frontier...
+[INFO] [1787759466.133877168] [frontier_explorer]: Frontier cells: 326 | Clusters: 12
+[INFO] [1787759466.135890954] [frontier_explorer]: Selected frontier: x=3.67, y=-1.04, distance=1.35 m
+[INFO] [1787759466.140612680] [frontier_explorer]: Frontier goal accepted.
+[INFO] [1787759466.142549510] [frontier_explorer]: Distance remaining: 0.00 m
+[INFO] [1787759466.160808026] [frontier_explorer]: Distance remaining: 1.49 m
+[INFO] [1787759467.230541554] [frontier_explorer]: Distance remaining: 1.29 m
+[INFO] [1787759468.170573631] [frontier_explorer]: Distance remaining: 1.09 m
+[INFO] [1787759469.610079487] [frontier_explorer]: Distance remaining: 0.86 m
+[INFO] [1787759470.699071577] [frontier_explorer]: Distance remaining: 0.66 m
+[INFO] [1787759471.439881612] [frontier_explorer]: Distance remaining: 0.46 m
+[INFO] [1787759472.160165159] [frontier_explorer]: Distance remaining: 0.23 m
+[INFO] [1787759472.800198630] [frontier_explorer]: Navigation finished. Status: 4
+[INFO] [1787759472.801377295] [frontier_explorer]: Recorded completed frontier: x=3.67, y=-1.04 | visited=6
+[INFO] [1787759472.802571265] [frontier_explorer]: Waiting for next map update before selecting an unvisited frontier...
+[INFO] [1787759476.132386888] [frontier_explorer]: Frontier cells: 207 | Clusters: 8
+[INFO] [1787759476.133665669] [frontier_explorer]: Selected frontier: x=3.32, y=-0.49, distance=0.65 m
+[INFO] [1787759476.138168645] [frontier_explorer]: Frontier goal accepted.
+[INFO] [1787759476.140733975] [frontier_explorer]: Distance remaining: 0.00 m
+[INFO] [1787759476.159708856] [frontier_explorer]: Distance remaining: 0.76 m
+[INFO] [1787759479.828662554] [frontier_explorer]: Distance remaining: 0.55 m
+[INFO] [1787759481.086765134] [frontier_explorer]: Distance remaining: 0.32 m
+[INFO] [1787759483.407648061] [frontier_explorer]: Navigation finished. Status: 4
+[INFO] [1787759483.408649776] [frontier_explorer]: Recorded completed frontier: x=3.32, y=-0.49 | visited=7
+[INFO] [1787759483.409763058] [frontier_explorer]: Waiting for next map update before selecting an unvisited frontier...
+[INFO] [1787759486.132582464] [frontier_explorer]: Frontier cells: 158 | Clusters: 4
+[INFO] [1787759486.134294570] [frontier_explorer]: Selected frontier: x=3.27, y=0.66, distance=1.24 m
+[INFO] [1787759486.138903944] [frontier_explorer]: Frontier goal accepted.
+[INFO] [1787759486.141187982] [frontier_explorer]: Distance remaining: 0.00 m
+[INFO] [1787759486.159056287] [frontier_explorer]: Distance remaining: 1.42 m
+[INFO] [1787759489.338610071] [frontier_explorer]: Distance remaining: 1.19 m
+[INFO] [1787759490.018495405] [frontier_explorer]: Distance remaining: 0.97 m
+[INFO] [1787759490.707942670] [frontier_explorer]: Distance remaining: 0.74 m
+[INFO] [1787759491.248048516] [frontier_explorer]: Distance remaining: 0.54 m
+[INFO] [1787759491.969483352] [frontier_explorer]: Distance remaining: 0.32 m
+[INFO] [1787759492.868950361] [frontier_explorer]: Distance remaining: 0.10 m
+[INFO] [1787759495.146997728] [frontier_explorer]: Navigation finished. Status: 4
+[INFO] [1787759495.147658981] [frontier_explorer]: Recorded completed frontier: x=3.27, y=0.66 | visited=8
+[INFO] [1787759495.148629226] [frontier_explorer]: Waiting for next map update before selecting an unvisited frontier...
+[INFO] [1787759496.134529861] [frontier_explorer]: Frontier cells: 62 | Clusters: 4
+[INFO] [1787759496.135959541] [frontier_explorer]: Selected frontier: x=3.22, y=1.86, distance=1.14 m
+[INFO] [1787759496.139611531] [frontier_explorer]: Frontier goal accepted.
+[INFO] [1787759496.141010927] [frontier_explorer]: Distance remaining: 0.00 m
+[INFO] [1787759496.160575328] [frontier_explorer]: Distance remaining: 1.37 m
+[INFO] [1787759498.669605182] [frontier_explorer]: Distance remaining: 1.16 m
+[INFO] [1787759499.569967806] [frontier_explorer]: Distance remaining: 0.94 m
+[INFO] [1787759500.179297088] [frontier_explorer]: Distance remaining: 0.71 m
+[INFO] [1787759500.789248883] [frontier_explorer]: Distance remaining: 0.49 m
+[INFO] [1787759502.119557462] [frontier_explorer]: Distance remaining: 0.23 m
+[INFO] [1787759504.498204789] [frontier_explorer]: Navigation finished. Status: 4
+[INFO] [1787759504.498549663] [frontier_explorer]: Recorded completed frontier: x=3.22, y=1.86 | visited=9
+[INFO] [1787759504.498837741] [frontier_explorer]: Waiting for next map update before selecting an unvisited frontier...
+[INFO] [1787759506.131931992] [frontier_explorer]: Frontier cells: 24 | Clusters: 2
+[INFO] [1787759506.133362439] [frontier_explorer]: Selected frontier: x=2.02, y=1.81, distance=1.43 m
+[INFO] [1787759506.138172246] [frontier_explorer]: Frontier goal accepted.
+[INFO] [1787759506.140718266] [frontier_explorer]: Distance remaining: 0.00 m
+[INFO] [1787759506.158533677] [frontier_explorer]: Distance remaining: 1.47 m
+[INFO] [1787759511.447725613] [frontier_explorer]: Distance remaining: 1.26 m
+[INFO] [1787759511.917774277] [frontier_explorer]: Distance remaining: 1.03 m
+[INFO] [1787759512.486529538] [frontier_explorer]: Distance remaining: 0.83 m
+[INFO] [1787759513.028505842] [frontier_explorer]: Distance remaining: 0.61 m
+[INFO] [1787759513.568222360] [frontier_explorer]: Distance remaining: 0.41 m
+[INFO] [1787759514.437440541] [frontier_explorer]: Distance remaining: 0.18 m
+[INFO] [1787759518.348302377] [frontier_explorer]: Navigation finished. Status: 4
+[INFO] [1787759518.349398902] [frontier_explorer]: Recorded completed frontier: x=2.02, y=1.81 | visited=10
+[INFO] [1787759518.350199562] [frontier_explorer]: Waiting for next map update before selecting an unvisited frontier...
+[INFO] [1787759521.133241268] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759521.134079409] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759526.132529774] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759526.133560919] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759531.135145707] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759531.135941366] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759536.134729674] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759536.135799951] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759541.132626122] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759541.133678164] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759546.133221977] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759546.134132419] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759551.134739995] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759551.135742702] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759556.132114097] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759556.132910427] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759561.134489178] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759561.135580641] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759566.132736262] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759566.133534834] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759571.132392860] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759571.133270214] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759576.122142284] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759576.122623644] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759581.134115985] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759581.135138882] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759586.133446923] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759586.134533774] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759591.133500995] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759591.134603239] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759596.132987740] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759596.133824879] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759601.133330072] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759601.134554541] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759606.134013741] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759606.135325762] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759611.133127066] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759611.133879412] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759616.135440485] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759616.136244015] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759621.121824876] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759621.122252597] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759626.132550758] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759626.133370044] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759631.132316187] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759631.133226923] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759636.133751485] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759636.134890927] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759641.133425830] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759641.134298444] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759646.132374142] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759646.133339417] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759651.132892932] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759651.133613630] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759656.133380499] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759656.135020279] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759661.135453631] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759661.136522865] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759666.134490062] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759666.135786062] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759671.132672756] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759671.133595808] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759676.132278806] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759676.133076393] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759681.132644735] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759681.133436822] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759686.131690796] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759686.132814685] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759691.133148470] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759691.134209001] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759696.132376771] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759696.133142668] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759701.135226271] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759701.136524651] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759706.132954933] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759706.134045464] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759711.132308860] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759711.133114246] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759716.132448431] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759716.133325417] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759721.121737505] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759721.122038162] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759726.135249190] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759726.136168914] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759731.134358431] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759731.135399172] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759736.136936327] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759736.137912308] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759741.125826040] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759741.126339298] [frontier_explorer]: No frontier goals found.
+[INFO] [1787759746.133592909] [frontier_explorer]: Frontier cells: 4 | Clusters: 0
+[INFO] [1787759746.134607690] [frontier_explorer]: No frontier goals found.

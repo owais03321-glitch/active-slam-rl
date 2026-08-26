@@ -1,0 +1,6 @@
+[INFO] [1787755220.782859392] [baseline_metrics]: Baseline run ID: frontier_baseline_01
+[INFO] [1787755220.783474975] [baseline_metrics]: Metrics CSV: /home/mohammad-owais/projects/active-slam-rl/experiments/baseline/runs/frontier_baseline_01/metrics.csv
+[INFO] [1787755220.784007702] [baseline_metrics]: Summary JSON: /home/mohammad-owais/projects/active-slam-rl/experiments/baseline/runs/frontier_baseline_01/summary.json
+[WARN] [1787755220.784770349] [baseline_metrics]: target_area_m2 is not set. Raw explored area will be recorded, but T90/T99 will remain disabled.
+[INFO] [1787755223.134223833] [baseline_metrics]: Initial known map area: 2.965 m^2
+[INFO] [1787755232.733682705] [baseline_metrics]: Exploration timer and path measurement started on first Nav2 goal.
