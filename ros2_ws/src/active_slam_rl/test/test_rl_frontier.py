@@ -110,3 +110,109 @@ def test_rejects_wrong_occupancy_data_size():
             origin_x=0.0,
             origin_y=0.0,
         )
+
+
+def test_eligibility_rejects_candidate_too_close_to_robot():
+    from active_slam_rl.rl_frontier import (
+        FrontierCandidate,
+        filter_eligible_frontier_candidates,
+    )
+
+    candidates = [
+        FrontierCandidate(
+            cell_x=1,
+            cell_y=1,
+            world_x=0.35,
+            world_y=0.0,
+            cluster_size=5,
+        ),
+        FrontierCandidate(
+            cell_x=2,
+            cell_y=1,
+            world_x=0.36,
+            world_y=0.0,
+            cluster_size=6,
+        ),
+    ]
+
+    eligible = filter_eligible_frontier_candidates(
+        candidates,
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    assert eligible == [candidates[1]]
+
+
+def test_eligibility_rejects_candidate_near_visited_goal():
+    from active_slam_rl.rl_frontier import (
+        FrontierCandidate,
+        filter_eligible_frontier_candidates,
+    )
+
+    candidates = [
+        FrontierCandidate(
+            cell_x=1,
+            cell_y=1,
+            world_x=2.0,
+            world_y=1.0,
+            cluster_size=5,
+        ),
+        FrontierCandidate(
+            cell_x=2,
+            cell_y=1,
+            world_x=3.0,
+            world_y=1.0,
+            cluster_size=6,
+        ),
+    ]
+
+    eligible = filter_eligible_frontier_candidates(
+        candidates,
+        robot_x=0.0,
+        robot_y=0.0,
+        visited_goals=[
+            (1.5, 1.0),
+        ],
+    )
+
+    assert eligible == [candidates[1]]
+
+
+def test_eligibility_preserves_candidate_order():
+    from active_slam_rl.rl_frontier import (
+        FrontierCandidate,
+        filter_eligible_frontier_candidates,
+    )
+
+    candidates = [
+        FrontierCandidate(
+            cell_x=2,
+            cell_y=1,
+            world_x=2.0,
+            world_y=0.0,
+            cluster_size=5,
+        ),
+        FrontierCandidate(
+            cell_x=4,
+            cell_y=1,
+            world_x=4.0,
+            world_y=0.0,
+            cluster_size=7,
+        ),
+        FrontierCandidate(
+            cell_x=6,
+            cell_y=1,
+            world_x=6.0,
+            world_y=0.0,
+            cluster_size=9,
+        ),
+    ]
+
+    eligible = filter_eligible_frontier_candidates(
+        candidates,
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    assert eligible == candidates

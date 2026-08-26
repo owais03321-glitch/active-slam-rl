@@ -1,3 +1,4 @@
+import math
 from collections import deque
 from dataclasses import dataclass
 
@@ -105,6 +106,46 @@ def extract_frontier_candidates(
     )
 
     return candidates
+
+
+
+def filter_eligible_frontier_candidates(
+    candidates,
+    *,
+    robot_x,
+    robot_y,
+    visited_goals=(),
+    min_robot_distance=0.35,
+    visited_goal_radius=0.50,
+):
+    """Apply the frozen baseline frontier eligibility rules."""
+
+    eligible = []
+
+    for candidate in candidates:
+        robot_distance = math.hypot(
+            candidate.world_x - robot_x,
+            candidate.world_y - robot_y,
+        )
+
+        if robot_distance <= min_robot_distance:
+            continue
+
+        already_visited = any(
+            math.hypot(
+                candidate.world_x - visited_x,
+                candidate.world_y - visited_y,
+            ) <= visited_goal_radius
+            for visited_x, visited_y
+            in visited_goals
+        )
+
+        if already_visited:
+            continue
+
+        eligible.append(candidate)
+
+    return eligible
 
 
 def _cluster_frontiers(
