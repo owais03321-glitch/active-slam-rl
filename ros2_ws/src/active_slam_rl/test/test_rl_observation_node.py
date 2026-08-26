@@ -150,3 +150,50 @@ def test_map_callback_uses_robot_pose_and_visited_filter(
     assert candidate.world_y == pytest.approx(
         4.5
     )
+
+
+def test_node_starts_with_empty_reward_measurements(node):
+    assert node.latest_explored_area_m2 is None
+
+    assert (
+        node.path_tracker.path_length_m
+        == pytest.approx(0.0)
+    )
+
+
+def test_map_update_records_explored_area(node):
+    msg = make_two_frontier_map()
+
+    node.update_from_map(
+        msg,
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    assert (
+        node.latest_explored_area_m2
+        == pytest.approx(140.0)
+    )
+
+
+def test_odom_callback_updates_path_tracker(node):
+    from nav_msgs.msg import Odometry
+
+    first = Odometry()
+
+    first.pose.pose.position.x = 0.0
+    first.pose.pose.position.y = 0.0
+
+    node.odom_callback(first)
+
+    second = Odometry()
+
+    second.pose.pose.position.x = 0.3
+    second.pose.pose.position.y = 0.4
+
+    node.odom_callback(second)
+
+    assert (
+        node.path_tracker.path_length_m
+        == pytest.approx(0.5)
+    )

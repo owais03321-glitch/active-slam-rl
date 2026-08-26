@@ -1,7 +1,7 @@
 from collections import deque
 
 import rclpy
-from nav_msgs.msg import OccupancyGrid
+from nav_msgs.msg import OccupancyGrid, Odometry
 from rclpy.node import Node
 from rclpy.time import Time
 from tf2_ros import (
@@ -14,8 +14,12 @@ from active_slam_rl.rl_env import ActiveSlamEnv
 from active_slam_rl.rl_observation import (
     DEFAULT_MAX_CANDIDATES,
 )
+from active_slam_rl.rl_path import (
+    PathLengthTracker,
+)
 from active_slam_rl.rl_ros_map import (
     eligible_frontier_candidates_from_occupancy_grid,
+    explored_area_m2_from_occupancy_grid,
 )
 
 
@@ -33,6 +37,10 @@ class RlObservationNode(Node):
             max_candidates=max_candidates,
         )
 
+        self.path_tracker = PathLengthTracker()
+
+        self.latest_explored_area_m2 = None
+
         self.visited_goals = deque(
             maxlen=100,
         )
@@ -49,6 +57,15 @@ class RlObservationNode(Node):
                 '/map',
                 self.map_callback,
                 10,
+            )
+        )
+
+        self.odom_subscription = (
+            self.create_subscription(
+                Odometry,
+                '/odom',
+                self.odom_callback,
+                50,
             )
         )
 
@@ -84,6 +101,12 @@ class RlObservationNode(Node):
     ):
         """Update the RL state from one map and known robot position."""
 
+        self.latest_explored_area_m2 = (
+            explored_area_m2_from_occupancy_grid(
+                msg
+            )
+        )
+
         candidates = (
             eligible_frontier_candidates_from_occupancy_grid(
                 msg,
@@ -106,6 +129,12 @@ class RlObservationNode(Node):
         self.latest_observation = observation
 
         return observation
+
+    def odom_callback(self, msg):
+        self.path_tracker.update(
+            x=msg.pose.pose.position.x,
+            y=msg.pose.pose.position.y,
+        )
 
     def map_callback(self, msg):
         try:
