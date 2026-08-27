@@ -74,6 +74,19 @@ class EpisodeTimeLimit:
         )
 
     @property
+    def remaining_s(self):
+        """Return nonnegative wall-clock budget remaining."""
+
+        if not self.active:
+            return self.horizon_s
+
+        return max(
+            0.0,
+            self.horizon_s
+            - self.elapsed_s,
+        )
+
+    @property
     def truncated(self):
         """Return whether the time limit has been reached."""
 

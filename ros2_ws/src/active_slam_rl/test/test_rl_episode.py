@@ -142,3 +142,72 @@ def test_episode_reset_rearms_time_limit():
     assert limit.start() == pytest.approx(
         500.0
     )
+
+
+def test_remaining_budget_is_full_before_episode_start():
+    clock = FakeClock(
+        value=500.0,
+    )
+
+    limit = EpisodeTimeLimit(
+        horizon_s=300.0,
+        clock=clock,
+    )
+
+    assert limit.active is False
+
+    assert limit.remaining_s == pytest.approx(
+        300.0
+    )
+
+
+def test_remaining_budget_tracks_elapsed_episode_time():
+    clock = FakeClock(
+        value=100.0,
+    )
+
+    limit = EpisodeTimeLimit(
+        horizon_s=300.0,
+        clock=clock,
+    )
+
+    limit.start()
+
+    clock.value = 225.5
+
+    assert limit.elapsed_s == pytest.approx(
+        125.5
+    )
+
+    assert limit.remaining_s == pytest.approx(
+        174.5
+    )
+
+    assert limit.truncated is False
+
+
+def test_remaining_budget_clamps_to_zero_at_and_after_horizon():
+    clock = FakeClock(
+        value=20.0,
+    )
+
+    limit = EpisodeTimeLimit(
+        horizon_s=300.0,
+        clock=clock,
+    )
+
+    limit.start()
+
+    clock.value = 320.0
+
+    assert limit.remaining_s == pytest.approx(
+        0.0
+    )
+    assert limit.truncated is True
+
+    clock.value = 350.0
+
+    assert limit.remaining_s == pytest.approx(
+        0.0
+    )
+    assert limit.truncated is True
