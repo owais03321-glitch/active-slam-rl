@@ -7,6 +7,7 @@ from active_slam_rl.rl_eval import (
     evaluate_frozen_policy,
     evaluation_config,
     parse_args,
+    simulation_command,
 )
 
 
@@ -381,3 +382,89 @@ def test_verbose_frozen_loop_prints_transition(capsys):
     assert 'reward=1.000000' in output
     assert 'area_gain_m2=2.500000' in output
     assert 'nav_success=True' in output
+
+
+
+def test_parse_initial_pose_arguments():
+    args = parse_args(
+        [
+            '--checkpoint',
+            '/tmp/model.zip',
+            '--episodes',
+            '1',
+            '--run-id',
+            'pose_probe',
+            '--run-kind',
+            'diagnostic',
+            '--x-pose',
+            '-1.75',
+            '--y-pose',
+            '-0.25',
+            '--yaw',
+            '1.5708',
+        ]
+    )
+
+    assert args.x_pose == -1.75
+    assert args.y_pose == -0.25
+    assert args.yaw == 1.5708
+
+
+def test_simulation_command_appends_pose():
+    command = simulation_command(
+        visual=False,
+        x_pose=-1.75,
+        y_pose=-0.25,
+        yaw=1.5708,
+    )
+
+    assert 'headless:=True' in command
+    assert 'use_rviz:=False' in command
+    assert 'x_pose:=-1.75' in command
+    assert 'y_pose:=-0.25' in command
+    assert 'yaw:=1.5708' in command
+
+
+def test_config_records_initial_pose():
+    args = SimpleNamespace(
+        episodes=1,
+        seed=4,
+        device='cpu',
+        visual=False,
+        verbose_steps=False,
+        x_pose=-2.0,
+        y_pose=-0.25,
+        yaw=-1.5708,
+    )
+
+    config = evaluation_config(
+        args,
+        checkpoint_path=(
+            '/tmp/model.zip'
+        ),
+        checkpoint_sha256=(
+            'abc123'
+        ),
+    )
+
+    assert config[
+        'initial_pose'
+    ] == {
+        'x_pose': -2.0,
+        'y_pose': -0.25,
+        'yaw': -1.5708,
+    }
+
+    assert (
+        'x_pose:=-2.0'
+        in config[
+            'simulation_command'
+        ]
+    )
+
+    assert (
+        config[
+            'learning_enabled'
+        ]
+        is False
+    )

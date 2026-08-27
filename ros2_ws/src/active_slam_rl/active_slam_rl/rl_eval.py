@@ -40,6 +40,35 @@ VISUAL_SIMULATION_COMMAND = (
     'headless:=False',
 )
 
+
+def simulation_command(
+    *,
+    visual=False,
+    x_pose=None,
+    y_pose=None,
+    yaw=None,
+):
+    command = list(
+        VISUAL_SIMULATION_COMMAND
+        if visual
+        else DEFAULT_SIMULATION_COMMAND
+    )
+
+    for name, value in (
+        ('x_pose', x_pose),
+        ('y_pose', y_pose),
+        ('yaw', yaw),
+    ):
+        if value is not None:
+            command.append(
+                f'{name}:={float(value)}'
+            )
+
+    return tuple(
+        command
+    )
+
+
 DEFAULT_EVIDENCE_ROOT = str(
     Path.home()
     / 'active-slam-rl-evidence'
@@ -124,6 +153,36 @@ def parse_args(argv=None):
         ),
     )
 
+    parser.add_argument(
+        '--x-pose',
+        type=float,
+        default=None,
+        help=(
+            'Optional TurtleBot3 initial x pose '
+            'passed to the Nav2 simulation launch.'
+        ),
+    )
+
+    parser.add_argument(
+        '--y-pose',
+        type=float,
+        default=None,
+        help=(
+            'Optional TurtleBot3 initial y pose '
+            'passed to the Nav2 simulation launch.'
+        ),
+    )
+
+    parser.add_argument(
+        '--yaw',
+        type=float,
+        default=None,
+        help=(
+            'Optional TurtleBot3 initial yaw '
+            'passed to the Nav2 simulation launch.'
+        ),
+    )
+
     return parser.parse_args(argv)
 
 
@@ -174,41 +233,92 @@ def evaluation_config(
                 False,
             )
         ),
+        'initial_pose': {
+            'x_pose': getattr(
+                args,
+                'x_pose',
+                None,
+            ),
+            'y_pose': getattr(
+                args,
+                'y_pose',
+                None,
+            ),
+            'yaw': getattr(
+                args,
+                'yaw',
+                None,
+            ),
+        },
         'simulation_command': list(
-            VISUAL_SIMULATION_COMMAND
-            if bool(
-                getattr(
+            simulation_command(
+                visual=bool(
+                    getattr(
+                        args,
+                        'visual',
+                        False,
+                    )
+                ),
+                x_pose=getattr(
                     args,
-                    'visual',
-                    False,
-                )
+                    'x_pose',
+                    None,
+                ),
+                y_pose=getattr(
+                    args,
+                    'y_pose',
+                    None,
+                ),
+                yaw=getattr(
+                    args,
+                    'yaw',
+                    None,
+                ),
             )
-            else DEFAULT_SIMULATION_COMMAND
         ),
     }
 
 
-def make_visual_session():
+def make_evaluation_session(args):
     return FreshRlSession(
         simulation=SimulationLifecycle(
-            command=VISUAL_SIMULATION_COMMAND
+            command=simulation_command(
+                visual=bool(
+                    getattr(
+                        args,
+                        'visual',
+                        False,
+                    )
+                ),
+                x_pose=getattr(
+                    args,
+                    'x_pose',
+                    None,
+                ),
+                y_pose=getattr(
+                    args,
+                    'y_pose',
+                    None,
+                ),
+                yaw=getattr(
+                    args,
+                    'yaw',
+                    None,
+                ),
+            )
         )
     )
 
 
 def build_evaluation_env(args):
-    if bool(
-        getattr(
-            args,
-            'visual',
-            False,
-        )
-    ):
-        return FreshSessionEnv(
-            session_factory=make_visual_session
+    def session_factory():
+        return make_evaluation_session(
+            args
         )
 
-    return FreshSessionEnv()
+    return FreshSessionEnv(
+        session_factory=session_factory
+    )
 
 
 def evaluate_frozen_policy(
