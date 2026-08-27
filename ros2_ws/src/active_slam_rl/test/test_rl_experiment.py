@@ -405,3 +405,134 @@ def test_evidence_schema_contains_decision_audit_fields():
     assert required_episode_fields.issubset(
         EPISODE_COLUMNS
     )
+
+
+def test_recorder_writes_model_contract_and_updates(
+    tmp_path,
+):
+    recorder = make_recorder(
+        tmp_path
+    )
+
+    recorder.record_model_contract(
+        {
+            'algorithm': (
+                'MaskablePPO'
+            ),
+            'n_epochs': 10,
+            'gamma': 0.99,
+        }
+    )
+
+    recorder.record_update(
+        {
+            'num_timesteps': 8,
+            'n_updates': 10,
+            'progress_remaining': 0.5,
+            'learning_rate': 0.0003,
+            'entropy_loss': -1.0,
+            'policy_gradient_loss': -0.1,
+            'value_loss': 0.2,
+            'approx_kl': 0.01,
+            'clip_fraction': 0.05,
+            'loss': 0.15,
+            'explained_variance': 0.25,
+            'clip_range': 0.2,
+            'clip_range_vf': None,
+            'policy_fingerprint': (
+                'a' * 64
+            ),
+        }
+    )
+
+    contract = json.loads(
+        (
+            recorder.run_dir
+            / 'resolved_model.json'
+        ).read_text()
+    )
+
+    assert contract[
+        'algorithm'
+    ] == 'MaskablePPO'
+
+    assert contract[
+        'n_epochs'
+    ] == 10
+
+    with (
+        recorder.updates_path
+        .open(
+            newline='',
+        )
+    ) as file_handle:
+        rows = list(
+            csv.DictReader(
+                file_handle
+            )
+        )
+
+    assert len(rows) == 1
+
+    assert rows[0][
+        'optimization_index'
+    ] == '0'
+
+    assert rows[0][
+        'n_updates'
+    ] == '10'
+
+    assert rows[0][
+        'policy_fingerprint'
+    ] == (
+        'a' * 64
+    )
+
+    summary = recorder.finish(
+        {
+            'status': (
+                'complete'
+            ),
+        }
+    )
+
+    assert summary[
+        'recorded_updates'
+    ] == 1
+
+
+def test_model_contract_and_update_indices_are_immutable(
+    tmp_path,
+):
+    recorder = make_recorder(
+        tmp_path
+    )
+
+    recorder.record_model_contract(
+        {
+            'algorithm': (
+                'MaskablePPO'
+            ),
+        }
+    )
+
+    with pytest.raises(
+        FileExistsError
+    ):
+        recorder.record_model_contract(
+            {
+                'algorithm': (
+                    'different'
+                ),
+            }
+        )
+
+    with pytest.raises(
+        ValueError,
+        match='sequential',
+    ):
+        recorder.record_update(
+            {
+                'optimization_index': 3,
+            }
+        )

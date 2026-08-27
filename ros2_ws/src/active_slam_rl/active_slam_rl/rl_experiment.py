@@ -11,7 +11,7 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 
-EVIDENCE_SCHEMA_VERSION = 1
+EVIDENCE_SCHEMA_VERSION = 2
 
 RUN_KINDS = {
     'diagnostic',
@@ -73,6 +73,25 @@ EPISODE_COLUMNS = (
     'terminated',
     'truncated',
     'outcome',
+)
+
+
+UPDATE_COLUMNS = (
+    'optimization_index',
+    'num_timesteps',
+    'n_updates',
+    'progress_remaining',
+    'learning_rate',
+    'entropy_loss',
+    'policy_gradient_loss',
+    'value_loss',
+    'approx_kl',
+    'clip_fraction',
+    'loss',
+    'explained_variance',
+    'clip_range',
+    'clip_range_vf',
+    'policy_fingerprint',
 )
 
 
@@ -310,6 +329,11 @@ class ExperimentRecorder:
             / 'episodes.csv'
         )
 
+        self.updates_path = (
+            self.run_dir
+            / 'updates.csv'
+        )
+
         self._initialize_csv(
             self.steps_path,
             STEP_COLUMNS,
@@ -320,8 +344,14 @@ class ExperimentRecorder:
             EPISODE_COLUMNS,
         )
 
+        self._initialize_csv(
+            self.updates_path,
+            UPDATE_COLUMNS,
+        )
+
         self._step_count = 0
         self._episode_count = 0
+        self._update_count = 0
         self._finished = False
 
     @staticmethod
@@ -462,6 +492,68 @@ class ExperimentRecorder:
 
         self._episode_count += 1
 
+    def record_update(
+        self,
+        payload,
+    ):
+        if self._finished:
+            raise RuntimeError(
+                'Cannot record after finish().'
+            )
+
+        payload = dict(
+            payload
+        )
+
+        expected_index = (
+            self._update_count
+        )
+
+        supplied_index = payload.get(
+            'optimization_index',
+            expected_index,
+        )
+
+        if supplied_index != expected_index:
+            raise ValueError(
+                'optimization_index must be sequential.'
+            )
+
+        payload[
+            'optimization_index'
+        ] = expected_index
+
+        self._append_csv(
+            self.updates_path,
+            UPDATE_COLUMNS,
+            payload,
+        )
+
+        self._update_count += 1
+
+    def record_model_contract(
+        self,
+        payload,
+    ):
+        if self._finished:
+            raise RuntimeError(
+                'Cannot record after finish().'
+            )
+
+        if not isinstance(
+            payload,
+            dict,
+        ):
+            raise TypeError(
+                'model contract must be a dict.'
+            )
+
+        _write_json_exclusive(
+            self.run_dir
+            / 'resolved_model.json',
+            payload,
+        )
+
     def record_checkpoint_hash(
         self,
         checkpoint_path,
@@ -526,6 +618,9 @@ class ExperimentRecorder:
             ),
             'recorded_episodes': (
                 self._episode_count
+            ),
+            'recorded_updates': (
+                self._update_count
             ),
         }
 
