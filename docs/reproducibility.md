@@ -286,6 +286,40 @@ This provides two integrity layers:
 1. per-file SHA-256 verification,
 2. archive-level SHA-256 verification.
 
+## Varied-Start Frozen Robustness Check
+
+The final trained checkpoint was also evaluated from three altered initial
+TurtleBot3 poses in the same simulation world:
+
+| Pose | Steps | Area gain | Path | Nav success |
+|---|---:|---:|---:|---:|
+| (-2.00, -0.50, 1.5708) | 5 | 10.613 m² | 12.497 m | 5/5 |
+| (-1.75, -0.50, -1.5708) | 9 | 17.538 m² | 15.814 m | 9/9 |
+| (-2.00, -0.25, 3.1416) | 7 | 14.803 m² | 18.831 m | 7/7 |
+
+Across the three runs:
+
+```text
+episodes completed       3/3
+navigation successes    21/21
+mean area gain          14.318 m²
+mean path length        15.714 m
+PPO updates             0
+policy parameters       unchanged
+```
+
+This is evidence against severe memorization of one exact initial pose or
+trajectory. It does not establish generalization to unseen environments,
+because the world itself was unchanged.
+
+See:
+
+```text
+experiments/rl/varied_start_robustness_3x.csv
+experiments/rl/varied_start_robustness_3x.json
+docs/experiments/varied_start_robustness.md
+```
+
 ## Known Limitations
 
 ### Simulator seed

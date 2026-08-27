@@ -48,6 +48,18 @@ area and area-per-meter efficiency.
 These are **descriptive results across five physical simulation repetitions
 per method**, not a statistical-significance claim.
 
+### Varied-start robustness sanity check
+
+The same frozen trained checkpoint was also evaluated from three altered
+initial robot poses in the same simulation world. All three episodes completed,
+all 21/21 Nav2 goals succeeded, and the policy fingerprint remained unchanged
+with zero PPO updates.
+
+This is useful evidence against memorizing one exact start pose or one exact
+trajectory, but it is **not** a claim of generalization to unseen worlds.
+
+See [varied-start robustness results](docs/experiments/varied_start_robustness.md).
+
 Full methodology and limitations:
 
 - [RL vs frontier results](docs/experiments/rl_vs_frontier_results.md)
