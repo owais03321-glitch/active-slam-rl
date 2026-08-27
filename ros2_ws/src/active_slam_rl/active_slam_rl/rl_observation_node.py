@@ -14,6 +14,9 @@ from tf2_ros import (
 )
 
 from active_slam_rl.rl_env import ActiveSlamEnv
+from active_slam_rl.rl_episode import (
+    EpisodeTimeLimit,
+)
 from active_slam_rl.rl_execution import (
     RlActionCoordinator,
 )
@@ -85,6 +88,17 @@ class RlObservationNode(Node):
 
         self.transition_tracker = (
             GoalTransitionTracker()
+        )
+
+        self.episode_time_limit = (
+            EpisodeTimeLimit(
+                clock=lambda: (
+                    self.get_clock()
+                    .now()
+                    .nanoseconds
+                    / 1e9
+                )
+            )
         )
 
         self.action_coordinator = (
@@ -289,12 +303,16 @@ class RlObservationNode(Node):
             .to_msg()
         )
 
-        return self.action_coordinator.start_action(
+        start = self.action_coordinator.start_action(
             action=action,
             area_m2=area_m2,
             path_m=path_m,
             stamp=stamp,
         )
+
+        self.episode_time_limit.start()
+
+        return start
 
     def complete_rl_action(
         self,
@@ -303,11 +321,26 @@ class RlObservationNode(Node):
     ):
         """Wait for Nav2 and complete the active RL transition."""
 
+        cancel_on_timeout = False
+
+        if timeout is None:
+            if not self.episode_time_limit.active:
+                raise RuntimeError(
+                    'Episode time limit has not started.'
+                )
+
+            timeout = (
+                self.episode_time_limit.remaining_s
+            )
+
+            cancel_on_timeout = True
+
         return self.action_coordinator.complete_action(
             measurement_provider=(
                 self.current_transition_measurements
             ),
             timeout=timeout,
+            cancel_on_timeout=cancel_on_timeout,
         )
 
     def odom_callback(self, msg):

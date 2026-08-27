@@ -363,6 +363,11 @@ def test_start_rl_action_uses_live_measurements(
 
     assert captured['stamp'] is not None
 
+    assert (
+        node.episode_time_limit.active
+        is True
+    )
+
 
 def test_complete_rl_action_passes_live_measurement_provider(
     node,
@@ -374,11 +379,15 @@ def test_complete_rl_action_passes_live_measurement_provider(
         *,
         measurement_provider,
         timeout,
+        cancel_on_timeout,
     ):
         captured['provider'] = (
             measurement_provider
         )
         captured['timeout'] = timeout
+        captured['cancel_on_timeout'] = (
+            cancel_on_timeout
+        )
         return 'completed'
 
     monkeypatch.setattr(
@@ -395,6 +404,11 @@ def test_complete_rl_action_passes_live_measurement_provider(
     assert callable(captured['provider'])
     assert captured['timeout'] == pytest.approx(
         2.5
+    )
+
+    assert (
+        captured['cancel_on_timeout']
+        is False
     )
 
 
@@ -540,3 +554,120 @@ def test_live_node_requires_external_episode_reset(
         ),
     ):
         node.env.reset()
+
+
+def test_node_episode_clock_starts_inactive(node):
+    assert (
+        node.episode_time_limit.horizon_s
+        == pytest.approx(300.0)
+    )
+
+    assert (
+        node.episode_time_limit.active
+        is False
+    )
+
+    assert (
+        node.episode_time_limit.remaining_s
+        == pytest.approx(300.0)
+    )
+
+
+def test_failed_action_does_not_start_episode_clock(
+    node,
+    monkeypatch,
+):
+    from nav_msgs.msg import Odometry
+
+    msg = make_two_frontier_map()
+
+    node.update_from_map(
+        msg,
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    odom = Odometry()
+    odom.pose.pose.position.x = 0.0
+    odom.pose.pose.position.y = 0.0
+
+    node.odom_callback(odom)
+
+    node.sync_env_to_latest_frontier()
+
+    def fail_start_action(**kwargs):
+        raise RuntimeError(
+            'synthetic Nav2 start failure'
+        )
+
+    monkeypatch.setattr(
+        node.action_coordinator,
+        'start_action',
+        fail_start_action,
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match='synthetic Nav2 start failure',
+    ):
+        node.start_rl_action(0)
+
+    assert (
+        node.episode_time_limit.active
+        is False
+    )
+
+
+def test_default_completion_uses_remaining_episode_budget(
+    node,
+    monkeypatch,
+):
+    captured = {}
+
+    class FakeEpisodeLimit:
+
+        active = True
+        remaining_s = 12.75
+
+    node.episode_time_limit = (
+        FakeEpisodeLimit()
+    )
+
+    def fake_complete_action(
+        *,
+        measurement_provider,
+        timeout,
+        cancel_on_timeout,
+    ):
+        captured['provider'] = (
+            measurement_provider
+        )
+        captured['timeout'] = timeout
+        captured['cancel_on_timeout'] = (
+            cancel_on_timeout
+        )
+
+        return 'horizon-completed'
+
+    monkeypatch.setattr(
+        node.action_coordinator,
+        'complete_action',
+        fake_complete_action,
+    )
+
+    result = node.complete_rl_action()
+
+    assert result == 'horizon-completed'
+
+    assert callable(
+        captured['provider']
+    )
+
+    assert captured['timeout'] == pytest.approx(
+        12.75
+    )
+
+    assert (
+        captured['cancel_on_timeout']
+        is True
+    )
