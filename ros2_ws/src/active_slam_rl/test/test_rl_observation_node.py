@@ -197,3 +197,68 @@ def test_odom_callback_updates_path_tracker(node):
         node.path_tracker.path_length_m
         == pytest.approx(0.5)
     )
+
+
+def test_transition_measurements_require_map(node):
+    from nav_msgs.msg import Odometry
+
+    odom = Odometry()
+    odom.pose.pose.position.x = 0.0
+    odom.pose.pose.position.y = 0.0
+
+    node.odom_callback(odom)
+
+    with pytest.raises(
+        RuntimeError,
+        match='Explored-area measurement is not available yet',
+    ):
+        node.current_transition_measurements()
+
+
+def test_transition_measurements_require_odom(node):
+    msg = make_two_frontier_map()
+
+    node.update_from_map(
+        msg,
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match='Odometry measurement is not available yet',
+    ):
+        node.current_transition_measurements()
+
+
+def test_transition_measurements_return_live_cumulative_state(
+    node,
+):
+    from nav_msgs.msg import Odometry
+
+    msg = make_two_frontier_map()
+
+    node.update_from_map(
+        msg,
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    first = Odometry()
+    first.pose.pose.position.x = 0.0
+    first.pose.pose.position.y = 0.0
+
+    node.odom_callback(first)
+
+    second = Odometry()
+    second.pose.pose.position.x = 0.3
+    second.pose.pose.position.y = 0.4
+
+    node.odom_callback(second)
+
+    area_m2, path_m = (
+        node.current_transition_measurements()
+    )
+
+    assert area_m2 == pytest.approx(140.0)
+    assert path_m == pytest.approx(0.5)

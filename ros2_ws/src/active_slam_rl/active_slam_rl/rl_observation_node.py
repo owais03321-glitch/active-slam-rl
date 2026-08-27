@@ -130,6 +130,24 @@ class RlObservationNode(Node):
 
         return observation
 
+    def current_transition_measurements(self):
+        """Return cumulative measurements required to start/finish RL."""
+
+        if self.latest_explored_area_m2 is None:
+            raise RuntimeError(
+                'Explored-area measurement is not available yet.'
+            )
+
+        if self.path_tracker.last_xy is None:
+            raise RuntimeError(
+                'Odometry measurement is not available yet.'
+            )
+
+        return (
+            float(self.latest_explored_area_m2),
+            float(self.path_tracker.path_length_m),
+        )
+
     def odom_callback(self, msg):
         self.path_tracker.update(
             x=msg.pose.pose.position.x,
