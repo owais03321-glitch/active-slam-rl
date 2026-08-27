@@ -2,9 +2,9 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>active_slam_rl</name>
-  <version>0.0.0</version>
-  <description>TODO: Package description</description>
-  <maintainer email="mohammad-owais@todo.todo">mohammad-owais</maintainer>
+  <version>0.1.0</version>
+  <description>ROS 2 Active SLAM research prototype using frontier exploration, Nav2, and MaskablePPO for learned frontier selection.</description>
+  <maintainer email="owais03321-glitch@users.noreply.github.com">Mohammad Owais</maintainer>
   <license>Apache-2.0</license>
 
   <depend>rclpy</depend>

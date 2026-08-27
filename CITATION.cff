@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this software or experimental methodology, please cite this repository."
+title: "Active SLAM with Reinforcement Learning"
+type: software
+authors:
+  - family-names: "Owais"
+    given-names: "Mohammad"
+repository-code: "https://github.com/owais03321-glitch/active-slam-rl"
+license: "Apache-2.0"
+version: "0.1.0"
+keywords:
+  - "active SLAM"
+  - "reinforcement learning"
+  - "ROS 2"
+  - "Nav2"
+  - "SLAM"
+  - "MaskablePPO"
+  - "robot exploration"
