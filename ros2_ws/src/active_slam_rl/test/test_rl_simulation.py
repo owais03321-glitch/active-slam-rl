@@ -15,15 +15,9 @@ class FakeProcess:
         self,
         *,
         pid=4321,
-        wait_results=None,
     ):
         self.pid = pid
         self.returncode = None
-        self.wait_results = list(
-            wait_results
-            if wait_results is not None
-            else [0]
-        )
         self.wait_timeouts = []
 
     def poll(self):
@@ -38,21 +32,24 @@ class FakeProcess:
             timeout
         )
 
-        result = self.wait_results.pop(
-            0
-        )
-
-        if result == 'timeout':
+        if self.returncode is None:
             raise subprocess.TimeoutExpired(
                 cmd='simulation',
                 timeout=timeout,
             )
 
-        self.returncode = int(
-            result
-        )
-
         return self.returncode
+
+
+class FakeClock:
+
+    def __init__(self):
+        self.value = 0.0
+
+    def __call__(self):
+        current = self.value
+        self.value += 1.0
+        return current
 
 
 def test_default_command_matches_frozen_simulation_contract():
@@ -67,9 +64,14 @@ def test_default_command_matches_frozen_simulation_contract():
     )
 
 
-def test_start_uses_new_process_session_and_redirects_stderr():
+def test_start_tracks_new_process_group_independently():
     captured = {}
-    process = FakeProcess()
+    process = FakeProcess(
+        pid=4321
+    )
+    groups = {
+        4321,
+    }
 
     def fake_popen(
         command,
@@ -77,11 +79,13 @@ def test_start_uses_new_process_session_and_redirects_stderr():
     ):
         captured['command'] = command
         captured['kwargs'] = kwargs
-
         return process
 
     lifecycle = SimulationLifecycle(
         popen_factory=fake_popen,
+        group_exists=(
+            lambda pgid: pgid in groups
+        ),
     )
 
     stdout = object()
@@ -92,6 +96,7 @@ def test_start_uses_new_process_session_and_redirects_stderr():
 
     assert returned is process
     assert lifecycle.process is process
+    assert lifecycle.process_group_id == 4321
     assert lifecycle.running is True
 
     assert captured['command'] == list(
@@ -105,12 +110,18 @@ def test_start_uses_new_process_session_and_redirects_stderr():
     }
 
 
-def test_double_start_is_rejected():
+def test_double_start_is_rejected_while_group_exists():
     process = FakeProcess()
+    groups = {
+        process.pid,
+    }
 
     lifecycle = SimulationLifecycle(
         popen_factory=(
             lambda *args, **kwargs: process
+        ),
+        group_exists=(
+            lambda pgid: pgid in groups
         ),
     )
 
@@ -123,28 +134,37 @@ def test_double_start_is_rejected():
         lifecycle.start()
 
 
-def test_stop_terminates_whole_process_group_with_sigint():
+def test_stop_terminates_whole_group_with_sigint():
     process = FakeProcess(
-        pid=9001,
-        wait_results=[
-            0,
-        ],
+        pid=9001
     )
-
+    groups = {
+        9001,
+    }
     signals = []
+
+    def fake_killpg(
+        pgid,
+        stop_signal,
+    ):
+        signals.append(
+            (
+                pgid,
+                stop_signal,
+            )
+        )
+        groups.discard(
+            pgid
+        )
+        process.returncode = 0
 
     lifecycle = SimulationLifecycle(
         popen_factory=(
             lambda *args, **kwargs: process
         ),
-        getpgid=lambda pid: 777,
-        killpg=lambda pgid, sig: (
-            signals.append(
-                (
-                    pgid,
-                    sig,
-                )
-            )
+        killpg=fake_killpg,
+        group_exists=(
+            lambda pgid: pgid in groups
         ),
     )
 
@@ -154,34 +174,136 @@ def test_stop_terminates_whole_process_group_with_sigint():
 
     assert signals == [
         (
-            777,
+            9001,
             signal.SIGINT,
         )
     ]
 
     assert lifecycle.process is None
+    assert lifecycle.process_group_id is None
+    assert lifecycle.running is False
+
+
+def test_stop_kills_descendants_after_launch_parent_exits():
+    process = FakeProcess(
+        pid=9002
+    )
+    groups = {
+        9002,
+    }
+    signals = []
+
+    def fake_killpg(
+        pgid,
+        stop_signal,
+    ):
+        signals.append(
+            (
+                pgid,
+                stop_signal,
+            )
+        )
+        groups.discard(
+            pgid
+        )
+
+    lifecycle = SimulationLifecycle(
+        popen_factory=(
+            lambda *args, **kwargs: process
+        ),
+        killpg=fake_killpg,
+        group_exists=(
+            lambda pgid: pgid in groups
+        ),
+    )
+
+    lifecycle.start()
+
+    # Simulate the ros2-launch parent dying while Gazebo/Nav2/SLAM
+    # descendants remain in the originally created process group.
+    process.returncode = 1
+
+    assert process.poll() == 1
+    assert lifecycle.running is True
+
+    assert lifecycle.stop() is True
+
+    assert signals == [
+        (
+            9002,
+            signal.SIGINT,
+        )
+    ]
+
+    assert lifecycle.running is False
+    assert lifecycle.process is None
+    assert lifecycle.process_group_id is None
+
+
+def test_stop_is_idempotent_when_parent_and_group_are_gone():
+    process = FakeProcess(
+        pid=9003
+    )
+    groups = {
+        9003,
+    }
+
+    lifecycle = SimulationLifecycle(
+        popen_factory=(
+            lambda *args, **kwargs: process
+        ),
+        group_exists=(
+            lambda pgid: pgid in groups
+        ),
+    )
+
+    lifecycle.start()
+
+    process.returncode = 0
+    groups.clear()
+
+    assert lifecycle.stop() is False
+    assert lifecycle.stop() is False
+
+    assert lifecycle.process is None
+    assert lifecycle.process_group_id is None
     assert lifecycle.running is False
 
 
 def test_stop_escalates_from_sigint_to_sigterm():
     process = FakeProcess(
-        wait_results=[
-            'timeout',
-            0,
-        ],
+        pid=9004
     )
-
+    groups = {
+        9004,
+    }
     signals = []
 
+    def fake_killpg(
+        pgid,
+        stop_signal,
+    ):
+        signals.append(
+            stop_signal
+        )
+
+        if stop_signal == signal.SIGTERM:
+            groups.discard(
+                pgid
+            )
+            process.returncode = 0
+
     lifecycle = SimulationLifecycle(
-        shutdown_timeout_s=2.5,
+        shutdown_timeout_s=1.5,
         popen_factory=(
             lambda *args, **kwargs: process
         ),
-        getpgid=lambda pid: 888,
-        killpg=lambda pgid, sig: (
-            signals.append(sig)
+        killpg=fake_killpg,
+        group_exists=(
+            lambda pgid: pgid in groups
         ),
+        monotonic=FakeClock(),
+        sleep=lambda duration: None,
     )
 
     lifecycle.start()
@@ -193,31 +315,41 @@ def test_stop_escalates_from_sigint_to_sigterm():
         signal.SIGTERM,
     ]
 
-    assert process.wait_timeouts == [
-        pytest.approx(2.5),
-        pytest.approx(2.5),
-    ]
 
-
-def test_stop_escalates_to_sigkill_and_is_then_idempotent():
+def test_stop_escalates_to_sigkill():
     process = FakeProcess(
-        wait_results=[
-            'timeout',
-            'timeout',
-            0,
-        ],
+        pid=9005
     )
-
+    groups = {
+        9005,
+    }
     signals = []
 
+    def fake_killpg(
+        pgid,
+        stop_signal,
+    ):
+        signals.append(
+            stop_signal
+        )
+
+        if stop_signal == signal.SIGKILL:
+            groups.discard(
+                pgid
+            )
+            process.returncode = -9
+
     lifecycle = SimulationLifecycle(
+        shutdown_timeout_s=1.5,
         popen_factory=(
             lambda *args, **kwargs: process
         ),
-        getpgid=lambda pid: 999,
-        killpg=lambda pgid, sig: (
-            signals.append(sig)
+        killpg=fake_killpg,
+        group_exists=(
+            lambda pgid: pgid in groups
         ),
+        monotonic=FakeClock(),
+        sleep=lambda duration: None,
     )
 
     lifecycle.start()
