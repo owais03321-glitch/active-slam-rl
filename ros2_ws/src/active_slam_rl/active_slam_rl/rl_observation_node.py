@@ -1,4 +1,5 @@
 from collections import deque
+from dataclasses import replace
 from threading import Condition, RLock
 
 import rclpy
@@ -206,6 +207,38 @@ class RlObservationNode(Node):
 
             return self._map_revision
 
+    def wait_for_fresh_map_or_horizon(
+        self,
+        *,
+        after_revision,
+    ):
+        """Wait for a newer map unless the episode horizon wins."""
+
+        after_revision = int(
+            after_revision
+        )
+
+        with self._map_condition:
+            self._map_condition.wait_for(
+                lambda: (
+                    self._map_revision
+                    > after_revision
+                    or self._episode_cutoff_measurements
+                    is not None
+                )
+            )
+
+            if (
+                self._episode_cutoff_measurements
+                is not None
+            ):
+                return False
+
+            return (
+                self._map_revision
+                > after_revision
+            )
+
     def _lookup_robot_position(self):
         transform = self.tf_buffer.lookup_transform(
             'map',
@@ -340,7 +373,7 @@ class RlObservationNode(Node):
         if not self.episode_time_limit.truncated:
             return False
 
-        with self._state_lock:
+        with self._map_condition:
             if self._episode_cutoff_measurements is not None:
                 return False
 
@@ -364,6 +397,8 @@ class RlObservationNode(Node):
                     self.path_tracker.path_length_m
                 ),
             )
+
+            self._map_condition.notify_all()
 
         self.episode_watchdog.cancel()
         self.nav_executor.request_cancel()
@@ -446,7 +481,7 @@ class RlObservationNode(Node):
                 'Episode time limit has not started.'
             )
 
-        return self.action_coordinator.complete_action(
+        outcome = self.action_coordinator.complete_action(
             measurement_provider=(
                 self.current_transition_measurements
             ),
@@ -456,6 +491,35 @@ class RlObservationNode(Node):
                 self.episode_cutoff_measurements
             ),
         )
+
+        if outcome is None:
+            return None
+
+        if timeout is not None:
+            return outcome
+
+        if outcome.truncated:
+            return outcome
+
+        completion_map_revision = (
+            self.map_revision
+        )
+
+        fresh_map = (
+            self.wait_for_fresh_map_or_horizon(
+                after_revision=(
+                    completion_map_revision
+                )
+            )
+        )
+
+        if not fresh_map:
+            return replace(
+                outcome,
+                truncated=True,
+            )
+
+        return outcome
 
     def odom_callback(self, msg):
         self._capture_episode_cutoff_if_due()

@@ -2,6 +2,9 @@ import rclpy
 from nav_msgs.msg import OccupancyGrid
 import pytest
 
+from active_slam_rl.rl_execution import (
+    RlActionOutcome,
+)
 from active_slam_rl.rl_observation_node import (
     RlObservationNode,
 )
@@ -631,6 +634,7 @@ def test_default_completion_uses_ros_watchdog_cutoff_provider(
     monkeypatch,
 ):
     captured = {}
+    events = []
 
     class FakeEpisodeLimit:
 
@@ -640,6 +644,12 @@ def test_default_completion_uses_ros_watchdog_cutoff_provider(
         FakeEpisodeLimit()
     )
 
+    outcome = RlActionOutcome(
+        navigation=object(),
+        transition=object(),
+        truncated=False,
+    )
+
     def fake_complete_action(
         *,
         measurement_provider,
@@ -647,6 +657,10 @@ def test_default_completion_uses_ros_watchdog_cutoff_provider(
         cancel_on_timeout,
         cutoff_provider,
     ):
+        events.append(
+            'complete'
+        )
+
         captured['provider'] = (
             measurement_provider
         )
@@ -658,7 +672,20 @@ def test_default_completion_uses_ros_watchdog_cutoff_provider(
             cutoff_provider
         )
 
-        return 'horizon-completed'
+        return outcome
+
+    def fake_wait_for_fresh_map_or_horizon(
+        *,
+        after_revision,
+    ):
+        events.append(
+            (
+                'wait_for_map',
+                after_revision,
+            )
+        )
+
+        return True
 
     monkeypatch.setattr(
         node.action_coordinator,
@@ -666,9 +693,15 @@ def test_default_completion_uses_ros_watchdog_cutoff_provider(
         fake_complete_action,
     )
 
+    monkeypatch.setattr(
+        node,
+        'wait_for_fresh_map_or_horizon',
+        fake_wait_for_fresh_map_or_horizon,
+    )
+
     result = node.complete_rl_action()
 
-    assert result == 'horizon-completed'
+    assert result is outcome
 
     assert callable(
         captured['provider']
@@ -684,6 +717,14 @@ def test_default_completion_uses_ros_watchdog_cutoff_provider(
     assert callable(
         captured['cutoff_provider']
     )
+
+    assert events == [
+        'complete',
+        (
+            'wait_for_map',
+            node.map_revision,
+        ),
+    ]
 
 
 def test_map_revision_starts_at_zero(node):
@@ -1051,3 +1092,121 @@ def test_post_horizon_map_is_excluded_from_cutoff(
         node.latest_explored_area_m2
         == pytest.approx(141.0)
     )
+
+
+def test_post_action_map_wait_unblocks_at_episode_horizon(
+    node,
+    monkeypatch,
+):
+    from nav_msgs.msg import Odometry
+    from threading import Thread
+
+    msg = make_two_frontier_map()
+
+    node.update_from_map(
+        msg,
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    odom = Odometry()
+    odom.pose.pose.position.x = 0.0
+    odom.pose.pose.position.y = 0.0
+    node.odom_callback(odom)
+
+    after_revision = (
+        node.map_revision
+    )
+
+    results = []
+
+    thread = Thread(
+        target=lambda: results.append(
+            node.wait_for_fresh_map_or_horizon(
+                after_revision=(
+                    after_revision
+                )
+            )
+        )
+    )
+
+    thread.start()
+
+    class FakeEpisodeLimit:
+
+        active = True
+        truncated = True
+
+    class FakeWatchdog:
+
+        def cancel(self):
+            pass
+
+    node.episode_time_limit = (
+        FakeEpisodeLimit()
+    )
+
+    node.episode_watchdog = (
+        FakeWatchdog()
+    )
+
+    monkeypatch.setattr(
+        node.nav_executor,
+        'request_cancel',
+        lambda: True,
+    )
+
+    node._episode_horizon_callback()
+
+    thread.join(
+        timeout=1.0
+    )
+
+    assert thread.is_alive() is False
+    assert results == [False]
+
+
+def test_horizon_during_post_action_wait_truncates_outcome(
+    node,
+    monkeypatch,
+):
+    class FakeEpisodeLimit:
+
+        active = True
+
+    node.episode_time_limit = (
+        FakeEpisodeLimit()
+    )
+
+    original = RlActionOutcome(
+        navigation=object(),
+        transition=object(),
+        truncated=False,
+    )
+
+    monkeypatch.setattr(
+        node.action_coordinator,
+        'complete_action',
+        lambda **kwargs: original,
+    )
+
+    monkeypatch.setattr(
+        node,
+        'wait_for_fresh_map_or_horizon',
+        lambda **kwargs: False,
+    )
+
+    result = node.complete_rl_action()
+
+    assert result is not original
+
+    assert result.navigation is (
+        original.navigation
+    )
+
+    assert result.transition is (
+        original.transition
+    )
+
+    assert result.truncated is True
+    assert original.truncated is False
