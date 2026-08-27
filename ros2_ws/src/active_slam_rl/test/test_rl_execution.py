@@ -771,3 +771,127 @@ def test_post_horizon_success_is_not_recorded_visited(
 
     assert visited_goals == []
     assert tracker.active is False
+
+
+def test_external_cutoff_uses_frozen_horizon_measurements(
+    configured_env,
+):
+    env, _ = configured_env
+
+    tracker = GoalTransitionTracker()
+
+    nav_executor = FakeNavExecutor(
+        completion=FakeCompletion(
+            succeeded=False,
+        )
+    )
+
+    coordinator = RlActionCoordinator(
+        env=env,
+        transition_tracker=tracker,
+        nav_executor=nav_executor,
+        visited_goals=[],
+    )
+
+    coordinator.start_action(
+        action=0,
+        area_m2=5.0,
+        path_m=2.0,
+        stamp=Time(),
+    )
+
+    def forbidden_live_measurement():
+        raise AssertionError(
+            'Post-cutoff measurements must not be sampled.'
+        )
+
+    outcome = coordinator.complete_action(
+        measurement_provider=(
+            forbidden_live_measurement
+        ),
+        timeout=None,
+        cutoff_provider=lambda: (
+            6.25,
+            2.75,
+        ),
+    )
+
+    assert outcome is not None
+    assert outcome.truncated is True
+
+    assert (
+        outcome.transition.metrics.area_gain_m2
+        == pytest.approx(1.25)
+    )
+
+    assert (
+        outcome.transition.metrics.path_delta_m
+        == pytest.approx(0.75)
+    )
+
+    assert (
+        outcome.transition.metrics.reward
+        == pytest.approx(1.175)
+    )
+
+    assert tracker.active is False
+
+
+def test_external_cutoff_success_is_not_recorded_visited(
+    configured_env,
+):
+    env, _ = configured_env
+
+    tracker = GoalTransitionTracker()
+    visited_goals = []
+
+    coordinator = RlActionCoordinator(
+        env=env,
+        transition_tracker=tracker,
+        nav_executor=FakeNavExecutor(
+            completion=FakeCompletion(
+                succeeded=True,
+            )
+        ),
+        visited_goals=visited_goals,
+    )
+
+    coordinator.start_action(
+        action=0,
+        area_m2=2.0,
+        path_m=1.0,
+        stamp=Time(),
+    )
+
+    outcome = coordinator.complete_action(
+        measurement_provider=lambda: (
+            99.0,
+            99.0,
+        ),
+        timeout=None,
+        cutoff_provider=lambda: (
+            2.5,
+            1.25,
+        ),
+    )
+
+    assert outcome is not None
+    assert outcome.truncated is True
+
+    assert (
+        outcome.navigation.succeeded
+        is True
+    )
+
+    assert (
+        outcome.transition.metrics.area_gain_m2
+        == pytest.approx(0.5)
+    )
+
+    assert (
+        outcome.transition.metrics.path_delta_m
+        == pytest.approx(0.25)
+    )
+
+    assert visited_goals == []
+    assert tracker.active is False

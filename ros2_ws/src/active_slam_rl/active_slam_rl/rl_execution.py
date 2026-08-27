@@ -72,6 +72,7 @@ class RlActionCoordinator:
         measurement_provider,
         timeout=None,
         cancel_on_timeout=False,
+        cutoff_provider=None,
     ):
         """Wait for Nav2, then sample and complete the RL transition."""
 
@@ -113,9 +114,25 @@ class RlActionCoordinator:
             truncated = True
 
         else:
-            end_area_m2, end_path_m = (
-                measurement_provider()
-            )
+            cutoff_measurements = None
+
+            if cutoff_provider is not None:
+                cutoff_measurements = (
+                    cutoff_provider()
+                )
+
+            if cutoff_measurements is None:
+                end_area_m2, end_path_m = (
+                    measurement_provider()
+                )
+
+            else:
+                (
+                    end_area_m2,
+                    end_path_m,
+                ) = cutoff_measurements
+
+                truncated = True
 
         transition = (
             self.transition_tracker.complete(
