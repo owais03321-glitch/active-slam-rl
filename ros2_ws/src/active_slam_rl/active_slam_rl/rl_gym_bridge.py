@@ -45,7 +45,9 @@ class RlGymStepBridge:
         )
 
         terminated = False
-        truncated = False
+        truncated = bool(
+            outcome.truncated
+        )
 
         info = {
             'action': int(

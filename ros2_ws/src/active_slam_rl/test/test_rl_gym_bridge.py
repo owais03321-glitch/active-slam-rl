@@ -19,8 +19,10 @@ def make_outcome(
     accepted=True,
     status=4,
     succeeded=True,
+    truncated=False,
 ):
     return SimpleNamespace(
+        truncated=truncated,
         navigation=SimpleNamespace(
             accepted=accepted,
             status=status,
@@ -223,3 +225,67 @@ def test_blocking_step_requires_terminal_completion():
         bridge.step(0)
 
     assert sync_calls == []
+
+
+def test_horizon_outcome_sets_truncated_without_termination():
+    outcome = make_outcome(
+        reward=0.75,
+        area_gain_m2=1.0,
+        path_delta_m=2.5,
+        accepted=True,
+        status=5,
+        succeeded=False,
+        truncated=True,
+    )
+
+    observation = make_observation(
+        active_slots=2,
+    )
+
+    bridge = RlGymStepBridge(
+        start_action=lambda action: None,
+        complete_action=(
+            lambda *, timeout: outcome
+        ),
+        observation_sync=(
+            lambda: observation
+        ),
+    )
+
+    (
+        returned_observation,
+        reward,
+        terminated,
+        truncated,
+        info,
+    ) = bridge.step(0)
+
+    assert returned_observation is observation
+
+    assert reward == pytest.approx(
+        0.75
+    )
+
+    assert terminated is False
+    assert truncated is True
+
+    assert (
+        info['navigation_succeeded']
+        is False
+    )
+
+    assert info[
+        'navigation_status'
+    ] == 5
+
+    assert info[
+        'area_gain_m2'
+    ] == pytest.approx(
+        1.0
+    )
+
+    assert info[
+        'path_delta_m'
+    ] == pytest.approx(
+        2.5
+    )
