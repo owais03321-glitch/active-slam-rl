@@ -461,3 +461,65 @@ def test_live_map_update_does_not_replace_frozen_gym_snapshot(
     assert refreshed_candidate.world_x == pytest.approx(
         10.5
     )
+
+
+def test_sync_applies_new_visited_goal_without_new_map_update(
+    node,
+):
+    msg = make_two_frontier_map()
+
+    node.update_from_map(
+        msg,
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    assert len(
+        node.latest_candidates
+    ) == 2
+
+    node.sync_env_to_latest_frontier()
+
+    assert (
+        node.env.candidate_for_action(
+            0
+        ).world_x
+        == pytest.approx(3.5)
+    )
+
+    with node._state_lock:
+        node.visited_goals.append(
+            (3.5, 4.5)
+        )
+
+    # Deliberately do NOT call update_from_map().
+    # latest_candidates is therefore stale with respect
+    # to the newly completed visited goal.
+    assert len(
+        node.latest_candidates
+    ) == 2
+
+    observation = (
+        node.sync_env_to_latest_frontier()
+    )
+
+    assert observation[
+        'action_mask'
+    ].tolist() == [
+        1,
+        0,
+        0,
+        0,
+    ]
+
+    remaining = (
+        node.env.candidate_for_action(0)
+    )
+
+    assert remaining.world_x == pytest.approx(
+        10.5
+    )
+
+    assert remaining.world_y == pytest.approx(
+        4.5
+    )

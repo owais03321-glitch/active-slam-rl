@@ -17,6 +17,9 @@ from active_slam_rl.rl_env import ActiveSlamEnv
 from active_slam_rl.rl_execution import (
     RlActionCoordinator,
 )
+from active_slam_rl.rl_frontier import (
+    filter_eligible_frontier_candidates,
+)
 from active_slam_rl.rl_gym_bridge import (
     RlGymStepBridge,
 )
@@ -214,7 +217,7 @@ class RlObservationNode(Node):
             }
 
     def sync_env_to_latest_frontier(self):
-        """Freeze the latest ROS frontier snapshot into Gym state."""
+        """Freeze the latest eligible ROS frontier snapshot into Gym."""
 
         with self._state_lock:
             if self.latest_robot_xy is None:
@@ -226,12 +229,25 @@ class RlObservationNode(Node):
                 self.latest_candidates
             )
 
+            visited_goals = tuple(
+                self.visited_goals
+            )
+
             robot_x, robot_y = (
                 self.latest_robot_xy
             )
 
+        eligible_candidates = (
+            filter_eligible_frontier_candidates(
+                candidates,
+                robot_x=robot_x,
+                robot_y=robot_y,
+                visited_goals=visited_goals,
+            )
+        )
+
         return self.env.set_frontier_state(
-            candidates=candidates,
+            candidates=eligible_candidates,
             robot_x=robot_x,
             robot_y=robot_y,
         )
