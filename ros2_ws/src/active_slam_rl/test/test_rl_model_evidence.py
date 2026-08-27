@@ -128,7 +128,7 @@ def test_resolved_contract_matches_real_project_model_without_session():
 
         assert contract[
             'algorithm'
-        ] == 'MaskablePPO'
+        ] == 'AuditedMaskablePPO'
 
         assert contract[
             'policy_class'

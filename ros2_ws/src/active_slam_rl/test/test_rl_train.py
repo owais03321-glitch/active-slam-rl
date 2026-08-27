@@ -575,8 +575,12 @@ class FakeModel:
         *,
         n_steps,
         batch_size,
+        telemetry_sink=None,
     ):
         self.env = env
+        self.telemetry_sink = telemetry_sink
+        self.policy = object()
+        self._n_updates = 0
 
         self.vec_env = (
             FakeVecEnv(
@@ -625,6 +629,34 @@ class FakeModel:
             )
 
             self.num_timesteps += 1
+
+        self._n_updates = 10
+
+        if self.telemetry_sink is not None:
+            self.telemetry_sink(
+                {
+                    'num_timesteps': (
+                        self.num_timesteps
+                    ),
+                    'n_updates': (
+                        self._n_updates
+                    ),
+                    'progress_remaining': 0.0,
+                    'learning_rate': 0.0003,
+                    'entropy_loss': -1.0,
+                    'policy_gradient_loss': -0.1,
+                    'value_loss': 0.2,
+                    'approx_kl': 0.01,
+                    'clip_fraction': 0.05,
+                    'loss': 0.15,
+                    'explained_variance': 0.25,
+                    'clip_range': 0.2,
+                    'clip_range_vf': None,
+                    'policy_fingerprint': (
+                        'f' * 64
+                    ),
+                }
+            )
 
         return self
 
@@ -691,6 +723,7 @@ def test_diagnostic_training_writes_evidence_and_model_hash(
         device,
         n_steps,
         batch_size,
+        telemetry_sink=None,
     ):
         build_calls.append(
             {
@@ -705,6 +738,7 @@ def test_diagnostic_training_writes_evidence_and_model_hash(
             env,
             n_steps=n_steps,
             batch_size=batch_size,
+            telemetry_sink=telemetry_sink,
         )
 
     monkeypatch.setattr(
@@ -718,6 +752,34 @@ def test_diagnostic_training_writes_evidence_and_model_hash(
         'validate_training_stack',
         lambda model, env: (
             model.get_env()
+        ),
+    )
+
+    monkeypatch.setattr(
+        rl_train,
+        'resolved_maskable_ppo_config',
+        lambda model: {
+            'algorithm': (
+                'AuditedMaskablePPO'
+            ),
+            'n_steps': 2,
+            'batch_size': 2,
+            'n_epochs': 10,
+        },
+    )
+
+    fingerprints = iter(
+        [
+            'a' * 64,
+            'b' * 64,
+        ]
+    )
+
+    monkeypatch.setattr(
+        rl_train,
+        'policy_fingerprint',
+        lambda policy: next(
+            fingerprints
         ),
     )
 
@@ -866,6 +928,21 @@ def test_diagnostic_training_writes_evidence_and_model_hash(
 
     assert (
         run_dir
+        / 'initial_model.zip'
+    ).is_file()
+
+    assert (
+        run_dir
+        / 'initial_model.sha256'
+    ).is_file()
+
+    assert (
+        run_dir
+        / 'resolved_model.json'
+    ).is_file()
+
+    assert (
+        run_dir
         / 'model.zip'
     ).is_file()
 
@@ -909,6 +986,24 @@ def test_diagnostic_training_writes_evidence_and_model_hash(
     ] == 1
 
     assert summary[
+        'recorded_updates'
+    ] == 1
+
+    assert summary[
+        'model_n_updates'
+    ] == 10
+
+    assert summary[
+        'initial_model_checkpoint'
+    ] == 'initial_model.zip'
+
+    assert len(
+        summary[
+            'initial_model_sha256'
+        ]
+    ) == 64
+
+    assert summary[
         'model_checkpoint'
     ] == 'model.zip'
 
@@ -917,6 +1012,66 @@ def test_diagnostic_training_writes_evidence_and_model_hash(
             'model_sha256'
         ]
     ) == 64
+
+    assert summary[
+        'initial_policy_fingerprint'
+    ] == (
+        'a' * 64
+    )
+
+    assert summary[
+        'final_policy_fingerprint'
+    ] == (
+        'b' * 64
+    )
+
+    assert summary[
+        'policy_parameters_changed'
+    ] is True
+
+    resolved_model = json.loads(
+        (
+            run_dir
+            / 'resolved_model.json'
+        ).read_text()
+    )
+
+    assert resolved_model[
+        'algorithm'
+    ] == 'AuditedMaskablePPO'
+
+    assert resolved_model[
+        'initial_policy_fingerprint'
+    ] == (
+        'a' * 64
+    )
+
+    assert len(
+        resolved_model[
+            'initial_model_sha256'
+        ]
+    ) == 64
+
+    updates = read_csv(
+        run_dir
+        / 'updates.csv'
+    )
+
+    assert len(
+        updates
+    ) == 1
+
+    assert updates[
+        0
+    ][
+        'optimization_index'
+    ] == '0'
+
+    assert updates[
+        0
+    ][
+        'n_updates'
+    ] == '10'
 
     assert (
         physical_env.closed
@@ -939,6 +1094,21 @@ def test_diagnostic_training_writes_evidence_and_model_hash(
     )
 
     assert (
+        'recorded_updates: 1'
+        in captured.out
+    )
+
+    assert (
+        'model_n_updates: 10'
+        in captured.out
+    )
+
+    assert (
+        'policy_parameters_changed: True'
+        in captured.out
+    )
+
+    assert (
         'model_sha256:'
         in captured.out
     )
@@ -947,3 +1117,63 @@ def test_diagnostic_training_writes_evidence_and_model_hash(
         'RL_TRAIN_COMPLETE'
         in captured.out
     )
+
+
+
+def test_build_model_uses_audited_maskableppo_without_session():
+    factory_calls = []
+
+    def forbidden_session_factory():
+        factory_calls.append(
+            'called'
+        )
+
+        raise RuntimeError(
+            'physical session must not start'
+        )
+
+    env = FreshSessionEnv(
+        session_factory=(
+            forbidden_session_factory
+        )
+    )
+
+    model = None
+
+    try:
+        model = rl_train.build_model(
+            env,
+            seed=0,
+            device='cpu',
+            n_steps=2,
+            batch_size=2,
+        )
+
+        assert type(
+            model
+        ).__name__ == (
+            'AuditedMaskablePPO'
+        )
+
+        assert (
+            model.optimization_index
+            == 0
+        )
+
+        assert factory_calls == []
+        assert env.session is None
+
+    finally:
+        if model is not None:
+            model_env = (
+                model.get_env()
+            )
+
+            if model_env is not None:
+                model_env.close()
+
+            else:
+                env.close()
+
+        else:
+            env.close()

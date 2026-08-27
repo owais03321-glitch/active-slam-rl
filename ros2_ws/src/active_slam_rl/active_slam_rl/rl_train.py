@@ -1,9 +1,14 @@
 import argparse
 from pathlib import Path
 
-from sb3_contrib import MaskablePPO
 from sb3_contrib.common.maskable.utils import (
     is_masking_supported,
+)
+
+from active_slam_rl.rl_model_evidence import (
+    AuditedMaskablePPO,
+    policy_fingerprint,
+    resolved_maskable_ppo_config,
 )
 
 from active_slam_rl.rl_episode import (
@@ -203,14 +208,16 @@ def build_model(
     device=DEFAULT_DEVICE,
     n_steps=DEFAULT_N_STEPS,
     batch_size=DEFAULT_BATCH_SIZE,
+    telemetry_sink=None,
 ):
-    return MaskablePPO(
+    return AuditedMaskablePPO(
         POLICY_NAME,
         env,
         seed=seed,
         device=device,
         n_steps=n_steps,
         batch_size=batch_size,
+        telemetry_sink=telemetry_sink,
         verbose=0,
     )
 
@@ -497,6 +504,9 @@ def _run_training(
             device=args.device,
             n_steps=args.n_steps,
             batch_size=args.batch_size,
+            telemetry_sink=(
+                recorder.record_update
+            ),
         )
 
         vec_env = (
@@ -530,6 +540,73 @@ def _run_training(
             f'{args.train}'
         )
 
+        initial_policy_fingerprint = (
+            policy_fingerprint(
+                model.policy
+            )
+        )
+
+        initial_checkpoint_base = (
+            recorder.run_dir
+            / 'initial_model'
+        )
+
+        model.save(
+            str(
+                initial_checkpoint_base
+            )
+        )
+
+        initial_checkpoint_path = (
+            recorder.run_dir
+            / 'initial_model.zip'
+        )
+
+        if not initial_checkpoint_path.is_file():
+            raise RuntimeError(
+                'MaskablePPO did not create '
+                'initial_model.zip.'
+            )
+
+        initial_model_sha256 = (
+            recorder.record_checkpoint_hash(
+                initial_checkpoint_path,
+                label='initial_model',
+            )
+        )
+
+        resolved_model = (
+            resolved_maskable_ppo_config(
+                model
+            )
+        )
+
+        resolved_model[
+            'initial_policy_fingerprint'
+        ] = (
+            initial_policy_fingerprint
+        )
+
+        resolved_model[
+            'initial_model_sha256'
+        ] = (
+            initial_model_sha256
+        )
+
+        recorder.record_model_contract(
+            resolved_model
+        )
+
+        print(
+            'initial_policy_fingerprint: '
+            f'{initial_policy_fingerprint}'
+        )
+
+        print(
+            'initial_model_sha256: '
+            f'{initial_model_sha256}'
+        )
+
         model.learn(
             total_timesteps=args.train
         )
@@ -549,6 +626,24 @@ def _run_training(
                 'training horizon: '
                 f'{actual_timesteps} != '
                 f'{args.train}'
+            )
+
+        final_policy_fingerprint = (
+            policy_fingerprint(
+                model.policy
+            )
+        )
+
+        policy_parameters_changed = (
+            final_policy_fingerprint
+            != initial_policy_fingerprint
+        )
+
+        if not policy_parameters_changed:
+            raise RuntimeError(
+                'PPO training completed without '
+                'changing the policy parameter '
+                'fingerprint.'
             )
 
         checkpoint_base = (
@@ -602,16 +697,34 @@ def _run_training(
                     'model_num_timesteps': (
                         actual_timesteps
                     ),
+                    'model_n_updates': int(
+                        model._n_updates
+                    ),
                     'total_recorded_reward': (
                         float(
                             env.total_recorded_reward
                         )
+                    ),
+                    'initial_model_checkpoint': (
+                        'initial_model.zip'
+                    ),
+                    'initial_model_sha256': (
+                        initial_model_sha256
                     ),
                     'model_checkpoint': (
                         'model.zip'
                     ),
                     'model_sha256': (
                         model_sha256
+                    ),
+                    'initial_policy_fingerprint': (
+                        initial_policy_fingerprint
+                    ),
+                    'final_policy_fingerprint': (
+                        final_policy_fingerprint
+                    ),
+                    'policy_parameters_changed': (
+                        policy_parameters_changed
                     ),
                 }
             )
@@ -625,6 +738,26 @@ def _run_training(
         print(
             'recorded_episodes: '
             f'{summary["recorded_episodes"]}'
+        )
+
+        print(
+            'recorded_updates: '
+            f'{summary["recorded_updates"]}'
+        )
+
+        print(
+            'model_n_updates: '
+            f'{model._n_updates}'
+        )
+
+        print(
+            'final_policy_fingerprint: '
+            f'{final_policy_fingerprint}'
+        )
+
+        print(
+            'policy_parameters_changed: '
+            f'{policy_parameters_changed}'
         )
 
         print(
