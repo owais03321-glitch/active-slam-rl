@@ -87,6 +87,8 @@ class RlObservationNode(Node):
             '/navigate_to_pose',
         )
 
+        self._nav_client_destroyed = False
+
         self.nav_executor = Nav2GoalExecutor(
             action_client=self.nav_client,
         )
@@ -520,6 +522,34 @@ class RlObservationNode(Node):
             )
 
         return outcome
+
+    def destroy_node(self):
+        """Explicitly release the Nav2 action client before the node."""
+
+        nav_client_error = None
+
+        if not self._nav_client_destroyed:
+            try:
+                self.nav_client.destroy()
+
+            except Exception as exc:
+                nav_client_error = exc
+
+            finally:
+                self._nav_client_destroyed = True
+
+        try:
+            result = super().destroy_node()
+
+        except Exception:
+            # Preserve node-destruction failures over any earlier
+            # action-client destruction failure.
+            raise
+
+        if nav_client_error is not None:
+            raise nav_client_error
+
+        return result
 
     def odom_callback(self, msg):
         self._capture_episode_cutoff_if_due()

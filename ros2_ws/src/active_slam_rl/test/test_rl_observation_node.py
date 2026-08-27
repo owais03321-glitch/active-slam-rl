@@ -1210,3 +1210,48 @@ def test_horizon_during_post_action_wait_truncates_outcome(
 
     assert result.truncated is True
     assert original.truncated is False
+
+
+def test_destroy_node_explicitly_destroys_nav2_action_client(
+    monkeypatch,
+):
+    rclpy.init()
+
+    test_node = RlObservationNode(
+        max_candidates=4,
+    )
+
+    destroy_calls = []
+
+    original_destroy = (
+        test_node.nav_client.destroy
+    )
+
+    def tracked_destroy():
+        destroy_calls.append(
+            True
+        )
+
+        return original_destroy()
+
+    monkeypatch.setattr(
+        test_node.nav_client,
+        'destroy',
+        tracked_destroy,
+    )
+
+    try:
+        test_node.destroy_node()
+
+        assert destroy_calls == [
+            True,
+        ]
+
+        assert (
+            test_node._nav_client_destroyed
+            is True
+        )
+
+    finally:
+        if rclpy.ok():
+            rclpy.shutdown()
