@@ -488,3 +488,139 @@ def test_failed_replacement_reset_fails_closed_and_cleans_new_session():
         match='requires reset',
     ):
         env.action_masks()
+
+
+class TimeoutStartSession(FakeSession):
+    def start(self):
+        self.events.append(
+            f'{self.name}:start'
+        )
+
+        raise TimeoutError(
+            f'{self.name} readiness timeout'
+        )
+
+
+def test_reset_retries_timeout_with_completely_fresh_session():
+    events = []
+
+    timed_out = TimeoutStartSession(
+        name='timed-out',
+        observation=make_observation(
+            active_action=1
+        ),
+        events=events,
+    )
+
+    recovered = FakeSession(
+        name='recovered',
+        observation=make_observation(
+            active_action=7
+        ),
+        events=events,
+    )
+
+    env = FreshSessionEnv(
+        session_factory=SessionFactory(
+            [
+                timed_out,
+                recovered,
+            ],
+            events,
+        ),
+        max_start_attempts=3,
+    )
+
+    observation, info = env.reset()
+
+    assert events == [
+        'timed-out:construct',
+        'timed-out:start',
+        'timed-out:close',
+        'recovered:construct',
+        'recovered:start',
+    ]
+
+    assert timed_out.closed is True
+    assert env.session is recovered
+    assert env.live_env is recovered.env
+
+    assert (
+        observation[
+            'action_mask'
+        ][7]
+        == 1
+    )
+
+    assert info == {}
+
+    env.close()
+
+
+def test_reset_stops_after_bounded_timeout_attempts():
+    events = []
+
+    first = TimeoutStartSession(
+        name='first-timeout',
+        observation=make_observation(
+            active_action=1
+        ),
+        events=events,
+    )
+
+    second = TimeoutStartSession(
+        name='second-timeout',
+        observation=make_observation(
+            active_action=2
+        ),
+        events=events,
+    )
+
+    env = FreshSessionEnv(
+        session_factory=SessionFactory(
+            [
+                first,
+                second,
+            ],
+            events,
+        ),
+        max_start_attempts=2,
+    )
+
+    with pytest.raises(
+        TimeoutError,
+        match='second-timeout',
+    ):
+        env.reset()
+
+    assert first.closed is True
+    assert second.closed is True
+    assert env.session is None
+    assert env.live_env is None
+
+    assert events == [
+        'first-timeout:construct',
+        'first-timeout:start',
+        'first-timeout:close',
+        'second-timeout:construct',
+        'second-timeout:start',
+        'second-timeout:close',
+    ]
+
+
+def test_max_start_attempts_must_be_positive_integer():
+    with pytest.raises(
+        ValueError,
+        match='positive integer',
+    ):
+        FreshSessionEnv(
+            max_start_attempts=0
+        )
+
+    with pytest.raises(
+        ValueError,
+        match='positive integer',
+    ):
+        FreshSessionEnv(
+            max_start_attempts=True
+        )

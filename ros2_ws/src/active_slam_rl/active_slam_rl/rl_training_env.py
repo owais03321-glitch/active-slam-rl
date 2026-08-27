@@ -13,6 +13,7 @@ class FreshSessionEnv(gym.Env):
         self,
         *,
         session_factory=FreshRlSession,
+        max_start_attempts=3,
     ):
         super().__init__()
 
@@ -25,6 +26,26 @@ class FreshSessionEnv(gym.Env):
 
         self._session_factory = (
             session_factory
+        )
+
+        if (
+            not isinstance(
+                max_start_attempts,
+                int,
+            )
+            or isinstance(
+                max_start_attempts,
+                bool,
+            )
+            or max_start_attempts <= 0
+        ):
+            raise ValueError(
+                'max_start_attempts must be a '
+                'positive integer.'
+            )
+
+        self.max_start_attempts = (
+            max_start_attempts
         )
 
         # Stable Gym spaces must exist before the first physical
@@ -90,34 +111,67 @@ class FreshSessionEnv(gym.Env):
         if previous_session is not None:
             previous_session.close()
 
-        new_session = (
-            self._session_factory()
-        )
-
-        try:
-            new_session.start()
-
-            observation = (
-                new_session.initial_observation
+        for attempt in range(
+            1,
+            self.max_start_attempts + 1,
+        ):
+            new_session = (
+                self._session_factory()
             )
 
-            if observation is None:
-                raise RuntimeError(
-                    'Fresh RL session did not provide '
-                    'an initial observation.'
+            try:
+                new_session.start()
+
+                observation = (
+                    new_session.initial_observation
                 )
 
-        except Exception:
-            new_session.close()
-            raise
+                if observation is None:
+                    raise RuntimeError(
+                        'Fresh RL session did not provide '
+                        'an initial observation.'
+                    )
 
-        self._session = (
-            new_session
-        )
+            except TimeoutError:
+                new_session.close()
 
-        return (
-            observation,
-            {},
+                print(
+                    'FRESH_SESSION_START_TIMEOUT '
+                    f'attempt={attempt}/'
+                    f'{self.max_start_attempts}'
+                )
+
+                if (
+                    attempt
+                    >= self.max_start_attempts
+                ):
+                    raise
+
+                continue
+
+            except Exception:
+                new_session.close()
+                raise
+
+            self._session = (
+                new_session
+            )
+
+            if attempt > 1:
+                print(
+                    'FRESH_SESSION_START_RECOVERED '
+                    f'attempt={attempt}/'
+                    f'{self.max_start_attempts}'
+                )
+
+            return (
+                observation,
+                {},
+            )
+
+        raise RuntimeError(
+            'Fresh session retry loop exited '
+            'without a result.'
         )
 
     def step(
