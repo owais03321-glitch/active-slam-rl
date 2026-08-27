@@ -1,5 +1,5 @@
 from collections import deque
-from threading import RLock
+from threading import Condition, RLock
 
 import rclpy
 from nav2_msgs.action import NavigateToPose
@@ -56,6 +56,10 @@ class RlObservationNode(Node):
         super().__init__('rl_observation_node')
 
         self._state_lock = RLock()
+        self._map_condition = Condition(
+            self._state_lock
+        )
+        self._map_revision = 0
 
         self.env = ActiveSlamEnv(
             max_candidates=max_candidates,
@@ -158,6 +162,41 @@ class RlObservationNode(Node):
             'RL observation node started.'
         )
 
+    @property
+    def map_revision(self):
+        """Return the latest successfully processed map revision."""
+
+        with self._state_lock:
+            return self._map_revision
+
+    def wait_for_map_revision(
+        self,
+        *,
+        after_revision,
+        timeout=None,
+    ):
+        """Wait until a map newer than after_revision is processed."""
+
+        after_revision = int(
+            after_revision
+        )
+
+        with self._map_condition:
+            advanced = (
+                self._map_condition.wait_for(
+                    lambda: (
+                        self._map_revision
+                        > after_revision
+                    ),
+                    timeout=timeout,
+                )
+            )
+
+            if not advanced:
+                return None
+
+            return self._map_revision
+
     def _lookup_robot_position(self):
         transform = self.tf_buffer.lookup_transform(
             'map',
@@ -225,6 +264,10 @@ class RlObservationNode(Node):
                 for key, value
                 in observation.items()
             }
+
+            self._map_revision += 1
+
+            self._map_condition.notify_all()
 
             return {
                 key: value.copy()

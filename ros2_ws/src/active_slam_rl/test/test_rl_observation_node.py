@@ -671,3 +671,101 @@ def test_default_completion_uses_remaining_episode_budget(
         captured['cancel_on_timeout']
         is True
     )
+
+
+def test_map_revision_starts_at_zero(node):
+    assert node.map_revision == 0
+
+
+def test_processed_map_advances_revision_once(node):
+    msg = make_two_frontier_map()
+
+    assert node.map_revision == 0
+
+    node.update_from_map(
+        msg,
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    assert node.map_revision == 1
+
+    node.update_from_map(
+        msg,
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    assert node.map_revision == 2
+
+
+def test_wait_for_map_revision_returns_if_map_is_already_newer(
+    node,
+):
+    msg = make_two_frontier_map()
+
+    node.update_from_map(
+        msg,
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    assert node.map_revision == 1
+
+    result = node.wait_for_map_revision(
+        after_revision=0,
+        timeout=0.0,
+    )
+
+    assert result == 1
+
+
+def test_wait_for_map_revision_unblocks_on_new_map(
+    node,
+):
+    from threading import Thread
+
+    msg = make_two_frontier_map()
+
+    starting_revision = (
+        node.map_revision
+    )
+
+    results = []
+
+    thread = Thread(
+        target=lambda: results.append(
+            node.wait_for_map_revision(
+                after_revision=(
+                    starting_revision
+                ),
+                timeout=1.0,
+            )
+        )
+    )
+
+    thread.start()
+
+    node.update_from_map(
+        msg,
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    thread.join(
+        timeout=1.0
+    )
+
+    assert thread.is_alive() is False
+
+    assert results == [
+        starting_revision + 1
+    ]
+
+    assert (
+        node.wait_for_map_revision(
+            after_revision=node.map_revision,
+            timeout=0.0,
+        )
+        is None
+    )
