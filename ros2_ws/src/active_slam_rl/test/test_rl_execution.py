@@ -31,11 +31,20 @@ class FakeNavExecutor:
         error=None,
         completion=None,
         on_wait=None,
+        completions=None,
     ):
         self.error = error
         self.completion = completion
         self.on_wait = on_wait
+        self.completions = (
+            list(completions)
+            if completions is not None
+            else None
+        )
         self.calls = []
+        self.wait_timeouts = []
+        self.cancel_calls = 0
+        self.events = []
 
     def start(
         self,
@@ -59,10 +68,36 @@ class FakeNavExecutor:
         self,
         timeout=None,
     ):
+        self.wait_timeouts.append(
+            timeout
+        )
+
+        self.events.append(
+            (
+                'wait',
+                timeout,
+            )
+        )
+
         if self.on_wait is not None:
             self.on_wait()
 
+        if self.completions is not None:
+            return self.completions.pop(0)
+
         return self.completion
+
+    def request_cancel(self):
+        self.cancel_calls += 1
+
+        self.events.append(
+            (
+                'cancel',
+                None,
+            )
+        )
+
+        return True
 
 
 @pytest.fixture
@@ -593,3 +628,146 @@ def test_complete_action_requires_active_transition(
             ),
             timeout=0.0,
         )
+
+
+def test_horizon_timeout_snapshots_before_cancel_and_waits_terminal(
+    configured_env,
+):
+    env, _ = configured_env
+
+    tracker = GoalTransitionTracker()
+
+    nav_executor = FakeNavExecutor(
+        completions=[
+            None,
+            FakeCompletion(
+                succeeded=False,
+            ),
+        ]
+    )
+
+    coordinator = RlActionCoordinator(
+        env=env,
+        transition_tracker=tracker,
+        nav_executor=nav_executor,
+        visited_goals=[],
+    )
+
+    coordinator.start_action(
+        action=0,
+        area_m2=5.0,
+        path_m=2.0,
+        stamp=Time(),
+    )
+
+    def cutoff_measurements():
+        nav_executor.events.append(
+            (
+                'measure',
+                None,
+            )
+        )
+
+        return (
+            6.25,
+            2.75,
+        )
+
+    outcome = coordinator.complete_action(
+        measurement_provider=cutoff_measurements,
+        timeout=7.5,
+        cancel_on_timeout=True,
+    )
+
+    assert outcome is not None
+    assert outcome.truncated is True
+
+    assert nav_executor.wait_timeouts == [
+        7.5,
+        None,
+    ]
+
+    assert nav_executor.cancel_calls == 1
+
+    assert nav_executor.events == [
+        (
+            'wait',
+            7.5,
+        ),
+        (
+            'measure',
+            None,
+        ),
+        (
+            'cancel',
+            None,
+        ),
+        (
+            'wait',
+            None,
+        ),
+    ]
+
+    assert (
+        outcome.transition.metrics.area_gain_m2
+        == pytest.approx(1.25)
+    )
+
+    assert (
+        outcome.transition.metrics.path_delta_m
+        == pytest.approx(0.75)
+    )
+
+    assert tracker.active is False
+
+
+def test_post_horizon_success_is_not_recorded_visited(
+    configured_env,
+):
+    env, _ = configured_env
+
+    tracker = GoalTransitionTracker()
+    visited_goals = []
+
+    nav_executor = FakeNavExecutor(
+        completions=[
+            None,
+            FakeCompletion(
+                succeeded=True,
+            ),
+        ]
+    )
+
+    coordinator = RlActionCoordinator(
+        env=env,
+        transition_tracker=tracker,
+        nav_executor=nav_executor,
+        visited_goals=visited_goals,
+    )
+
+    coordinator.start_action(
+        action=0,
+        area_m2=2.0,
+        path_m=1.0,
+        stamp=Time(),
+    )
+
+    outcome = coordinator.complete_action(
+        measurement_provider=lambda: (
+            2.5,
+            1.25,
+        ),
+        timeout=0.5,
+        cancel_on_timeout=True,
+    )
+
+    assert outcome is not None
+    assert outcome.truncated is True
+
+    assert (
+        outcome.navigation.succeeded
+        is True
+    )
+
+    assert visited_goals == []
+    assert tracker.active is False

@@ -8,6 +8,7 @@ class RlActionOutcome:
 
     navigation: object
     transition: object
+    truncated: bool = False
 
 
 class RlActionCoordinator:
@@ -70,6 +71,7 @@ class RlActionCoordinator:
         *,
         measurement_provider,
         timeout=None,
+        cancel_on_timeout=False,
     ):
         """Wait for Nav2, then sample and complete the RL transition."""
 
@@ -84,12 +86,36 @@ class RlActionCoordinator:
             )
         )
 
-        if navigation is None:
-            return None
+        truncated = False
 
-        end_area_m2, end_path_m = (
-            measurement_provider()
-        )
+        if navigation is None:
+            if not cancel_on_timeout:
+                return None
+
+            end_area_m2, end_path_m = (
+                measurement_provider()
+            )
+
+            self.nav_executor.request_cancel()
+
+            navigation = (
+                self.nav_executor.wait_for_completion(
+                    timeout=None
+                )
+            )
+
+            if navigation is None:
+                raise RuntimeError(
+                    'Nav2 cancellation produced no '
+                    'terminal outcome.'
+                )
+
+            truncated = True
+
+        else:
+            end_area_m2, end_path_m = (
+                measurement_provider()
+            )
 
         transition = (
             self.transition_tracker.complete(
@@ -98,7 +124,10 @@ class RlActionCoordinator:
             )
         )
 
-        if navigation.succeeded:
+        if (
+            navigation.succeeded
+            and not truncated
+        ):
             lock_context = (
                 self.visited_goals_lock
                 if self.visited_goals_lock is not None
@@ -116,4 +145,5 @@ class RlActionCoordinator:
         return RlActionOutcome(
             navigation=navigation,
             transition=transition,
+            truncated=truncated,
         )
