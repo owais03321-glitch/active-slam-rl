@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 from dataclasses import dataclass
 
 
@@ -19,11 +20,15 @@ class RlActionCoordinator:
         transition_tracker,
         nav_executor,
         visited_goals,
+        visited_goals_lock=None,
     ):
         self.env = env
         self.transition_tracker = transition_tracker
         self.nav_executor = nav_executor
         self.visited_goals = visited_goals
+        self.visited_goals_lock = (
+            visited_goals_lock
+        )
 
     def start_action(
         self,
@@ -94,12 +99,19 @@ class RlActionCoordinator:
         )
 
         if navigation.succeeded:
-            self.visited_goals.append(
-                (
-                    transition.start.goal_x,
-                    transition.start.goal_y,
-                )
+            lock_context = (
+                self.visited_goals_lock
+                if self.visited_goals_lock is not None
+                else nullcontext()
             )
+
+            with lock_context:
+                self.visited_goals.append(
+                    (
+                        transition.start.goal_x,
+                        transition.start.goal_y,
+                    )
+                )
 
         return RlActionOutcome(
             navigation=navigation,

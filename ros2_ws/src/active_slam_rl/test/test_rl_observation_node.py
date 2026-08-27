@@ -93,6 +93,8 @@ def test_node_updates_observation_from_map(node):
         0,
     ]
 
+    node.sync_env_to_latest_frontier()
+
     first = node.env.candidate_for_action(
         0
     )
@@ -138,6 +140,8 @@ def test_map_callback_uses_robot_pose_and_visited_filter(
         0,
         0,
     ]
+
+    node.sync_env_to_latest_frontier()
 
     candidate = (
         node.env.candidate_for_action(0)
@@ -327,6 +331,8 @@ def test_start_rl_action_uses_live_measurements(
         fake_start_action,
     )
 
+    node.sync_env_to_latest_frontier()
+
     result = node.start_rl_action(1)
 
     assert result == 'started'
@@ -372,4 +378,69 @@ def test_complete_rl_action_passes_live_measurement_provider(
     assert callable(captured['provider'])
     assert captured['timeout'] == pytest.approx(
         2.5
+    )
+
+
+def test_sync_env_requires_live_frontier_state(node):
+    with pytest.raises(
+        RuntimeError,
+        match='Frontier state is not available yet',
+    ):
+        node.sync_env_to_latest_frontier()
+
+
+def test_live_map_update_does_not_replace_frozen_gym_snapshot(
+    node,
+):
+    msg = make_two_frontier_map()
+
+    node.update_from_map(
+        msg,
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    node.sync_env_to_latest_frontier()
+
+    frozen_candidate = (
+        node.env.candidate_for_action(0)
+    )
+
+    assert frozen_candidate.world_x == pytest.approx(
+        3.5
+    )
+
+    with node._state_lock:
+        node.visited_goals.append(
+            (3.5, 4.5)
+        )
+
+    node.update_from_map(
+        msg,
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    still_frozen = (
+        node.env.candidate_for_action(0)
+    )
+
+    assert still_frozen.world_x == pytest.approx(
+        3.5
+    )
+
+    assert node.latest_candidates[
+        0
+    ].world_x == pytest.approx(
+        10.5
+    )
+
+    node.sync_env_to_latest_frontier()
+
+    refreshed_candidate = (
+        node.env.candidate_for_action(0)
+    )
+
+    assert refreshed_candidate.world_x == pytest.approx(
+        10.5
     )

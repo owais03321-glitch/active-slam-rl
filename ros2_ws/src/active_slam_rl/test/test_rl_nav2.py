@@ -1,3 +1,5 @@
+from threading import Thread
+
 import pytest
 from action_msgs.msg import GoalStatus
 from builtin_interfaces.msg import Time
@@ -298,3 +300,53 @@ def test_accepted_goal_preserves_terminal_nav2_status(
 
     assert executor.active is False
     assert executor.current_goal is None
+
+
+def test_wait_for_completion_unblocks_across_threads():
+    action_client = FakeActionClient()
+
+    executor = Nav2GoalExecutor(
+        action_client=action_client
+    )
+
+    executor.start(
+        x=1.0,
+        y=2.0,
+        stamp=Time(),
+    )
+
+    completions = []
+
+    wait_thread = Thread(
+        target=lambda: completions.append(
+            executor.wait_for_completion(
+                timeout=1.0
+            )
+        )
+    )
+
+    wait_thread.start()
+
+    action_client.send_future.resolve(
+        FakeGoalHandle(
+            accepted=False,
+        )
+    )
+
+    wait_thread.join(
+        timeout=1.0
+    )
+
+    assert wait_thread.is_alive() is False
+    assert len(completions) == 1
+
+    completion = completions[0]
+
+    assert completion is not None
+    assert completion.accepted is False
+    assert completion.goal_x == pytest.approx(
+        1.0
+    )
+    assert completion.goal_y == pytest.approx(
+        2.0
+    )

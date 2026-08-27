@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from threading import Event
+from threading import Event, RLock
 
 from action_msgs.msg import GoalStatus
 from nav2_msgs.action import NavigateToPose
@@ -60,24 +60,28 @@ class Nav2GoalExecutor:
         self._current_goal = None
         self._completion = None
         self._completion_event = Event()
+        self._state_lock = RLock()
 
     @property
     def active(self):
         """Return whether a Nav2 goal lifecycle is active."""
 
-        return self._active
+        with self._state_lock:
+            return self._active
 
     @property
     def current_goal(self):
         """Return the active goal coordinates, if any."""
 
-        return self._current_goal
+        with self._state_lock:
+            return self._current_goal
 
     @property
     def completion(self):
         """Return the latest terminal completion, if any."""
 
-        return self._completion
+        with self._state_lock:
+            return self._completion
 
     def start(
         self,
@@ -88,10 +92,11 @@ class Nav2GoalExecutor:
     ):
         """Start one asynchronous Nav2 goal."""
 
-        if self.active:
-            raise RuntimeError(
-                'A Nav2 goal is already active.'
-            )
+        with self._state_lock:
+            if self._active:
+                raise RuntimeError(
+                    'A Nav2 goal is already active.'
+                )
 
         if not self.action_client.server_is_ready():
             raise RuntimeError(
@@ -107,13 +112,19 @@ class Nav2GoalExecutor:
             stamp=stamp,
         )
 
-        self._active = True
-        self._current_goal = (
-            goal_x,
-            goal_y,
-        )
-        self._completion = None
-        self._completion_event.clear()
+        with self._state_lock:
+            if self._active:
+                raise RuntimeError(
+                    'A Nav2 goal is already active.'
+                )
+
+            self._active = True
+            self._current_goal = (
+                goal_x,
+                goal_y,
+            )
+            self._completion = None
+            self._completion_event.clear()
 
         try:
             future = (
@@ -123,8 +134,9 @@ class Nav2GoalExecutor:
             )
 
         except Exception:
-            self._active = False
-            self._current_goal = None
+            with self._state_lock:
+                self._active = False
+                self._current_goal = None
             raise
 
         future.add_done_callback(
@@ -139,22 +151,23 @@ class Nav2GoalExecutor:
         accepted,
         status,
     ):
-        goal_x, goal_y = self._current_goal
+        with self._state_lock:
+            goal_x, goal_y = self._current_goal
 
-        completion = NavigationCompletion(
-            goal_x=goal_x,
-            goal_y=goal_y,
-            accepted=bool(accepted),
-            status=status,
-        )
+            completion = NavigationCompletion(
+                goal_x=goal_x,
+                goal_y=goal_y,
+                accepted=bool(accepted),
+                status=status,
+            )
 
-        self._completion = completion
-        self._active = False
-        self._current_goal = None
+            self._completion = completion
+            self._active = False
+            self._current_goal = None
 
-        self._completion_event.set()
+            self._completion_event.set()
 
-        return completion
+            return completion
 
     def _goal_response_callback(
         self,
@@ -201,4 +214,5 @@ class Nav2GoalExecutor:
         if not completed:
             return None
 
-        return self._completion
+        with self._state_lock:
+            return self._completion
