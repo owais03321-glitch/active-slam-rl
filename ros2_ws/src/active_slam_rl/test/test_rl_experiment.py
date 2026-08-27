@@ -347,3 +347,61 @@ def test_unknown_csv_fields_fail_closed(
                 'invented_metric': 123,
             }
         )
+
+
+def test_evidence_schema_contains_decision_audit_fields():
+    from active_slam_rl.rl_experiment import (
+        EPISODE_COLUMNS,
+        STEP_COLUMNS,
+    )
+
+    required_step_fields = {
+        'step_started_at_utc',
+        'step_duration_s',
+        'episode_elapsed_s',
+        'action',
+        'action_mask_bits',
+        'valid_action_count',
+        'goal_x',
+        'goal_y',
+        'reward',
+        'cumulative_episode_return',
+        'area_gain_m2',
+        'explored_area_m2',
+        'path_delta_m',
+        'cumulative_path_m',
+        'robot_x',
+        'robot_y',
+        'navigation_accepted',
+        'navigation_status',
+        'navigation_succeeded',
+        'map_revision',
+        'next_action_mask_bits',
+        'next_valid_action_count',
+        'terminated',
+        'truncated',
+    }
+
+    required_episode_fields = {
+        'episode_reset_at_utc',
+        'steps',
+        'episode_return',
+        'initial_explored_area_m2',
+        'final_explored_area_m2',
+        'initial_path_m',
+        'final_path_m',
+        'final_episode_elapsed_s',
+        'navigation_successes',
+        'navigation_failures',
+        'terminated',
+        'truncated',
+        'outcome',
+    }
+
+    assert required_step_fields.issubset(
+        STEP_COLUMNS
+    )
+
+    assert required_episode_fields.issubset(
+        EPISODE_COLUMNS
+    )
