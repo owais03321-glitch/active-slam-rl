@@ -37,6 +37,14 @@ The trained MaskablePPO frontier selector therefore preserved essentially
 the same explored area while using a shorter path and substantially fewer
 high-level navigation decisions.
 
+![Relative comparison of the trained RL policy and classical frontier baseline](docs/assets/frontier_vs_rl_relative.png)
+
+The normalized figure uses the classical frontier mean as `1.00`. Lower is
+better for path length and navigation-goal count; higher is better for explored
+area and area-per-meter efficiency.
+
+![Path-length distribution across five runs per method](docs/assets/path_length_distribution.png)
+
 These are **descriptive results across five physical simulation repetitions
 per method**, not a statistical-significance claim.
 
