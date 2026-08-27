@@ -1,0 +1,6 @@
+metric,label,preferred_direction,baseline_n,baseline_mean,baseline_stdev,trained_rl_n,trained_rl_mean,trained_rl_stdev,trained_minus_baseline,percent_vs_baseline
+newly_explored_area_m2,Newly explored area (m²),higher,5,18.516500551834707,0.05666789383244734,5,18.5140005517602,0.04025698817095946,-0.0025000000745052375,-0.013501471660407912
+path_length_m,Path length (m),lower,5,15.262120224574858,2.339999990983211,5,14.122536021096083,1.0016618095153158,-1.1395842034787744,-7.46674896220403
+area_per_meter,Area per meter (m²/m),higher,5,1.236241377846776,0.1886229056517883,5,1.3159368404104317,0.08788859941569481,0.07969546256365567,6.446594005975214
+navigation_goals,Navigation goals,lower,5,10.6,1.140175425099138,5,5.0,0.7071067811865476,-5.6,-52.83018867924528
+navigation_success_rate,Navigation success rate,higher,5,1.0,0.0,5,1.0,0.0,0.0,0.0

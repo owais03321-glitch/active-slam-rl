@@ -1,0 +1,87 @@
+{
+  "baseline_evaluation_horizon_s": 300.0,
+  "baseline_runs": 5,
+  "comparison": "classical_frontier_vs_trained_maskable_ppo",
+  "deterministic_rl_actions": true,
+  "elapsed_time_directly_comparable": false,
+  "learning_during_evaluation": false,
+  "limitations": [
+    "The baseline uses the frozen 300-second evaluation protocol, whereas current RL trials may stop earlier when frontiers are exhausted.",
+    "Elapsed-time values therefore must not be presented as a direct formal baseline-versus-RL comparison.",
+    "The Gym reset seed is recorded, but the Gazebo launch has no explicit simulator seed; trials are repeated physical evaluations rather than exact stochastic pairs.",
+    "Five repetitions per method support descriptive comparison but not a strong statistical-significance claim."
+  ],
+  "metrics": {
+    "area_per_meter": {
+      "baseline_mean": 1.236241377846776,
+      "baseline_n": 5,
+      "baseline_stdev": 0.1886229056517883,
+      "label": "Area per meter (m\u00b2/m)",
+      "metric": "area_per_meter",
+      "percent_vs_baseline": 6.446594005975214,
+      "preferred_direction": "higher",
+      "trained_minus_baseline": 0.07969546256365567,
+      "trained_rl_mean": 1.3159368404104317,
+      "trained_rl_n": 5,
+      "trained_rl_stdev": 0.08788859941569481
+    },
+    "navigation_goals": {
+      "baseline_mean": 10.6,
+      "baseline_n": 5,
+      "baseline_stdev": 1.140175425099138,
+      "label": "Navigation goals",
+      "metric": "navigation_goals",
+      "percent_vs_baseline": -52.83018867924528,
+      "preferred_direction": "lower",
+      "trained_minus_baseline": -5.6,
+      "trained_rl_mean": 5.0,
+      "trained_rl_n": 5,
+      "trained_rl_stdev": 0.7071067811865476
+    },
+    "navigation_success_rate": {
+      "baseline_mean": 1.0,
+      "baseline_n": 5,
+      "baseline_stdev": 0.0,
+      "label": "Navigation success rate",
+      "metric": "navigation_success_rate",
+      "percent_vs_baseline": 0.0,
+      "preferred_direction": "higher",
+      "trained_minus_baseline": 0.0,
+      "trained_rl_mean": 1.0,
+      "trained_rl_n": 5,
+      "trained_rl_stdev": 0.0
+    },
+    "newly_explored_area_m2": {
+      "baseline_mean": 18.516500551834707,
+      "baseline_n": 5,
+      "baseline_stdev": 0.05666789383244734,
+      "label": "Newly explored area (m\u00b2)",
+      "metric": "newly_explored_area_m2",
+      "percent_vs_baseline": -0.013501471660407912,
+      "preferred_direction": "higher",
+      "trained_minus_baseline": -0.0025000000745052375,
+      "trained_rl_mean": 18.5140005517602,
+      "trained_rl_n": 5,
+      "trained_rl_stdev": 0.04025698817095946
+    },
+    "path_length_m": {
+      "baseline_mean": 15.262120224574858,
+      "baseline_n": 5,
+      "baseline_stdev": 2.339999990983211,
+      "label": "Path length (m)",
+      "metric": "path_length_m",
+      "percent_vs_baseline": -7.46674896220403,
+      "preferred_direction": "lower",
+      "trained_minus_baseline": -1.1395842034787744,
+      "trained_rl_mean": 14.122536021096083,
+      "trained_rl_n": 5,
+      "trained_rl_stdev": 1.0016618095153158
+    }
+  },
+  "rl_evaluation_source": "formal_eval_initial_vs_trained_5x_001",
+  "rl_source_commit": "e4b0e135a922de35df7f27d78a22a72a8425d2aa",
+  "rl_stopping_rule": "frontier exhaustion or episode horizon",
+  "simulator_seed_controlled": false,
+  "trained_rl_runs": 5,
+  "training_source_run": "formal_train64_seed0_004"
+}
