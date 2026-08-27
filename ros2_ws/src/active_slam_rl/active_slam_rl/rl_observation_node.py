@@ -134,7 +134,7 @@ class RlObservationNode(Node):
                 start_action=self.start_rl_action,
                 complete_action=self.complete_rl_action,
                 observation_sync=(
-                    self.sync_env_to_latest_frontier
+                    self.sync_env_to_actionable_frontier
                 ),
             )
         )
@@ -354,6 +354,35 @@ class RlObservationNode(Node):
             robot_x=robot_x,
             robot_y=robot_y,
         )
+
+    def sync_env_to_actionable_frontier(self):
+        """Return a non-empty decision snapshot or horizon state."""
+
+        while True:
+            observation = (
+                self.sync_env_to_latest_frontier()
+            )
+
+            if int(
+                observation[
+                    'action_mask'
+                ].sum()
+            ) > 0:
+                return observation
+
+            if not self.episode_time_limit.active:
+                return observation
+
+            revision = self.map_revision
+
+            fresh_map = (
+                self.wait_for_fresh_map_or_horizon(
+                    after_revision=revision
+                )
+            )
+
+            if not fresh_map:
+                return observation
 
     def episode_cutoff_measurements(self):
         """Return frozen horizon measurements, if captured."""

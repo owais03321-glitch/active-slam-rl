@@ -714,3 +714,67 @@ def test_missing_live_info_fails_closed(
     ) == []
 
     env.close()
+
+
+def test_agent_decision_mask_is_latched_across_live_mask_drift(
+    tmp_path,
+):
+    recorder = make_recorder(
+        tmp_path,
+        run_id='diag_mask_latch',
+    )
+
+    physical_env = FakeLiveEnv()
+
+    env = RecordedTrainingEnv(
+        physical_env,
+        recorder=recorder,
+    )
+
+    env.reset()
+
+    assert env.action_masks().tolist() == [
+        True,
+        False,
+        True,
+        False,
+    ]
+
+    # Simulate asynchronous physical/live state drift
+    # after the observation was handed to the policy.
+    physical_env._mask = np.array(
+        [
+            0,
+            1,
+            0,
+            0,
+        ],
+        dtype=np.int8,
+    )
+
+    # PPO must still receive and execute against the
+    # mask paired with its actual observation.
+    assert env.action_masks().tolist() == [
+        True,
+        False,
+        True,
+        False,
+    ]
+
+    env.step(0)
+
+    rows = read_csv(
+        recorder.steps_path
+    )
+
+    assert len(rows) == 1
+
+    assert rows[0][
+        'action_mask_bits'
+    ] == '1010'
+
+    assert rows[0][
+        'action'
+    ] == '0'
+
+    env.close()

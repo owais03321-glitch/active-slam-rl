@@ -1255,3 +1255,77 @@ def test_destroy_node_explicitly_destroys_nav2_action_client(
     finally:
         if rclpy.ok():
             rclpy.shutdown()
+
+
+def test_actionable_sync_waits_through_transient_zero_frontier(
+    node,
+    monkeypatch,
+):
+    class ActiveEpisodeLimit:
+        active = True
+
+    node.episode_time_limit = (
+        ActiveEpisodeLimit()
+    )
+
+    zero = (
+        node.env
+        ._make_empty_observation()
+    )
+
+    actionable = (
+        node.env
+        ._make_empty_observation()
+    )
+
+    actionable[
+        'action_mask'
+    ][2] = 1
+
+    observations = iter(
+        [
+            zero,
+            actionable,
+        ]
+    )
+
+    monkeypatch.setattr(
+        node,
+        'sync_env_to_latest_frontier',
+        lambda: next(
+            observations
+        ),
+    )
+
+    waits = []
+
+    def fake_wait(
+        *,
+        after_revision,
+    ):
+        waits.append(
+            after_revision
+        )
+
+        return True
+
+    monkeypatch.setattr(
+        node,
+        'wait_for_fresh_map_or_horizon',
+        fake_wait,
+    )
+
+    result = (
+        node.sync_env_to_actionable_frontier()
+    )
+
+    assert result[
+        'action_mask'
+    ].tolist() == [
+        0,
+        0,
+        1,
+        0,
+    ]
+
+    assert len(waits) == 1

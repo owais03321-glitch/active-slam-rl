@@ -92,6 +92,7 @@ class RecordedTrainingEnv(gym.Wrapper):
         self._total_reward = 0.0
 
         self._closed = False
+        self._decision_mask = None
 
     @property
     def session(self):
@@ -121,25 +122,59 @@ class RecordedTrainingEnv(gym.Wrapper):
     def episode_index(self):
         return self._episode_index
 
-    def action_masks(self):
-        action_masks = getattr(
-            self.env,
-            'action_masks',
-            None,
-        )
-
-        if not callable(
-            action_masks
-        ):
+    @staticmethod
+    def _observation_mask(
+        observation,
+    ):
+        if 'action_mask' not in observation:
             raise RuntimeError(
-                'Wrapped environment does not expose '
-                'action_masks().'
+                'Agent observation has no action_mask.'
             )
 
         return np.asarray(
-            action_masks(),
+            observation[
+                'action_mask'
+            ],
             dtype=bool,
-        ).copy()
+        ).reshape(-1).copy()
+
+    def _latch_decision_mask(
+        self,
+        observation,
+    ):
+        mask = self._observation_mask(
+            observation
+        )
+
+        expected_size = getattr(
+            self.action_space,
+            'n',
+            mask.size,
+        )
+
+        if mask.size != expected_size:
+            raise RuntimeError(
+                'Observation action mask has '
+                'unexpected size.'
+            )
+
+        self._decision_mask = (
+            mask.copy()
+        )
+
+        return mask
+
+    def action_masks(self):
+        if self._decision_mask is None:
+            raise RuntimeError(
+                'No agent decision mask is latched; '
+                'reset() is required.'
+            )
+
+        return (
+            self._decision_mask
+            .copy()
+        )
 
     def _require_node(self):
         session = self.session
@@ -278,6 +313,10 @@ class RecordedTrainingEnv(gym.Wrapper):
                 seed=seed,
                 options=options,
             )
+        )
+
+        self._latch_decision_mask(
+            observation
         )
 
         snapshot = (
@@ -476,12 +515,11 @@ class RecordedTrainingEnv(gym.Wrapper):
                 'recorded requested action.'
             )
 
-        next_mask = np.asarray(
-            observation[
-                'action_mask'
-            ],
-            dtype=bool,
-        ).reshape(-1)
+        next_mask = (
+            self._latch_decision_mask(
+                observation
+            )
+        )
 
         snapshot = (
             self._physical_snapshot()
@@ -678,4 +716,5 @@ class RecordedTrainingEnv(gym.Wrapper):
                 self.env.close()
 
             finally:
+                self._decision_mask = None
                 self._closed = True
