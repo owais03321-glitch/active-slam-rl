@@ -588,3 +588,59 @@ def test_reset_clears_sb3_action_masks():
     ]
 
     env.close()
+
+
+def test_live_reset_fails_closed_and_preserves_state():
+    from active_slam_rl.rl_frontier import FrontierCandidate
+
+    env = ActiveSlamEnv(
+        max_candidates=2,
+    )
+
+    candidate = FrontierCandidate(
+        cell_x=2,
+        cell_y=3,
+        world_x=1.0,
+        world_y=2.0,
+        cluster_size=5,
+    )
+
+    before = env.set_frontier_state(
+        candidates=[candidate],
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    env.require_external_episode_reset()
+
+    assert (
+        env.external_episode_reset_required
+        is True
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match=(
+            'fresh simulator and SLAM state'
+        ),
+    ):
+        env.reset()
+
+    after = env._copy_observation()
+
+    np.testing.assert_array_equal(
+        after['action_mask'],
+        before['action_mask'],
+    )
+
+    np.testing.assert_array_equal(
+        after['candidates'],
+        before['candidates'],
+    )
+
+    assert (
+        env.candidate_for_action(0)
+        == candidate
+    )
+
+    env.close()

@@ -113,6 +113,8 @@ class RlObservationNode(Node):
             self.gym_step_bridge
         )
 
+        self.env.require_external_episode_reset()
+
         self.map_subscription = (
             self.create_subscription(
                 OccupancyGrid,

@@ -81,6 +81,7 @@ class ActiveSlamEnv(gym.Env):
 
         self._candidates = []
         self._step_bridge = None
+        self._external_episode_reset_required = False
 
     def _make_empty_observation(self):
         return {
@@ -162,6 +163,17 @@ class ActiveSlamEnv(gym.Env):
 
         return self._step_bridge
 
+    @property
+    def external_episode_reset_required(self):
+        """Return whether local-only Gym reset is forbidden."""
+
+        return self._external_episode_reset_required
+
+    def require_external_episode_reset(self):
+        """Forbid reset until physical simulator/SLAM reset exists."""
+
+        self._external_episode_reset_required = True
+
     def bind_step_bridge(
         self,
         step_bridge,
@@ -189,6 +201,12 @@ class ActiveSlamEnv(gym.Env):
         seed=None,
         options=None,
     ):
+        if self._external_episode_reset_required:
+            raise RuntimeError(
+                'Live episode reset requires a fresh '
+                'simulator and SLAM state.'
+            )
+
         super().reset(seed=seed)
 
         self._observation = (

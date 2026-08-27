@@ -523,3 +523,20 @@ def test_sync_applies_new_visited_goal_without_new_map_update(
     assert remaining.world_y == pytest.approx(
         4.5
     )
+
+
+def test_live_node_requires_external_episode_reset(
+    node,
+):
+    assert (
+        node.env.external_episode_reset_required
+        is True
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match=(
+            'fresh simulator and SLAM state'
+        ),
+    ):
+        node.env.reset()
