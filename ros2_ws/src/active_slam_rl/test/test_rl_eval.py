@@ -254,3 +254,130 @@ def test_all_false_mask_is_rejected():
             episodes=1,
             seed=0,
         )
+
+
+def test_parse_visual_demo_flags():
+    args = parse_args(
+        [
+            '--checkpoint',
+            '/tmp/model.zip',
+            '--episodes',
+            '1',
+            '--run-id',
+            'visual_demo',
+            '--run-kind',
+            'diagnostic',
+            '--visual',
+            '--verbose-steps',
+        ]
+    )
+
+    assert args.visual is True
+    assert args.verbose_steps is True
+
+
+def test_config_records_visual_demo_contract():
+    args = SimpleNamespace(
+        episodes=1,
+        seed=9,
+        device='cpu',
+        visual=True,
+        verbose_steps=True,
+    )
+
+    config = evaluation_config(
+        args,
+        checkpoint_path=(
+            '/tmp/model.zip'
+        ),
+        checkpoint_sha256=(
+            'abc123'
+        ),
+    )
+
+    assert (
+        config[
+            'visual_simulation'
+        ]
+        is True
+    )
+
+    assert (
+        config[
+            'verbose_steps'
+        ]
+        is True
+    )
+
+    assert (
+        'use_rviz:=True'
+        in config[
+            'simulation_command'
+        ]
+    )
+
+    assert (
+        'headless:=False'
+        in config[
+            'simulation_command'
+        ]
+    )
+
+    assert (
+        config[
+            'learning_enabled'
+        ]
+        is False
+    )
+
+
+def test_verbose_frozen_loop_prints_transition(capsys):
+    class VerboseEvalEnv(
+        FakeEvalEnv
+    ):
+        def step(
+            self,
+            action,
+        ):
+            (
+                observation,
+                reward,
+                terminated,
+                truncated,
+                _,
+            ) = super().step(
+                action
+            )
+
+            return (
+                observation,
+                reward,
+                terminated,
+                truncated,
+                {
+                    'area_gain_m2': 2.5,
+                    'path_delta_m': 1.25,
+                    'goal_x': 0.5,
+                    'goal_y': -0.75,
+                    'navigation_status': 4,
+                    'navigation_succeeded': True,
+                },
+            )
+
+    evaluate_frozen_policy(
+        model=FakeModel(),
+        env=VerboseEvalEnv(),
+        episodes=1,
+        seed=0,
+        verbose_steps=True,
+    )
+
+    output = (
+        capsys.readouterr()
+        .out
+    )
+
+    assert 'RL_DEMO_STEP' in output
+    assert 'reward=1.000000' in output
+    assert 'area_gain_m2=2.500000' in output
+    assert 'nav_success=True' in output

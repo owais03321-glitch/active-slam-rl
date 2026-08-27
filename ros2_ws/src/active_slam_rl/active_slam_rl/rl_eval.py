@@ -16,6 +16,11 @@ from active_slam_rl.rl_model_evidence import (
 from active_slam_rl.rl_recording_env import (
     RecordedTrainingEnv,
 )
+from active_slam_rl.rl_session import FreshRlSession
+from active_slam_rl.rl_simulation import (
+    DEFAULT_SIMULATION_COMMAND,
+    SimulationLifecycle,
+)
 from active_slam_rl.rl_training_env import (
     DEFAULT_SESSION_SETTLE_S,
     FreshSessionEnv,
@@ -24,6 +29,16 @@ from active_slam_rl.rl_training_env import (
 
 DEFAULT_SEED = 0
 DEFAULT_DEVICE = 'cpu'
+
+VISUAL_SIMULATION_COMMAND = (
+    'ros2',
+    'launch',
+    'nav2_bringup',
+    'tb3_simulation_launch.py',
+    'slam:=True',
+    'use_rviz:=True',
+    'headless:=False',
+)
 
 DEFAULT_EVIDENCE_ROOT = str(
     Path.home()
@@ -91,6 +106,24 @@ def parse_args(argv=None):
         default=DEFAULT_EVIDENCE_ROOT,
     )
 
+    parser.add_argument(
+        '--visual',
+        action='store_true',
+        help=(
+            'Launch Gazebo and RViz GUIs for '
+            'frozen-policy demonstration.'
+        ),
+    )
+
+    parser.add_argument(
+        '--verbose-steps',
+        action='store_true',
+        help=(
+            'Print each frozen policy decision '
+            'and physical transition result.'
+        ),
+    )
+
     return parser.parse_args(argv)
 
 
@@ -127,7 +160,55 @@ def evaluation_config(
             DEFAULT_SESSION_SETTLE_S
         ),
         'action_masking_required': True,
+        'visual_simulation': bool(
+            getattr(
+                args,
+                'visual',
+                False,
+            )
+        ),
+        'verbose_steps': bool(
+            getattr(
+                args,
+                'verbose_steps',
+                False,
+            )
+        ),
+        'simulation_command': list(
+            VISUAL_SIMULATION_COMMAND
+            if bool(
+                getattr(
+                    args,
+                    'visual',
+                    False,
+                )
+            )
+            else DEFAULT_SIMULATION_COMMAND
+        ),
     }
+
+
+def make_visual_session():
+    return FreshRlSession(
+        simulation=SimulationLifecycle(
+            command=VISUAL_SIMULATION_COMMAND
+        )
+    )
+
+
+def build_evaluation_env(args):
+    if bool(
+        getattr(
+            args,
+            'visual',
+            False,
+        )
+    ):
+        return FreshSessionEnv(
+            session_factory=make_visual_session
+        )
+
+    return FreshSessionEnv()
 
 
 def evaluate_frozen_policy(
@@ -136,6 +217,7 @@ def evaluate_frozen_policy(
     env,
     episodes,
     seed,
+    verbose_steps=False,
 ):
     for episode_index in range(
         episodes
@@ -146,6 +228,8 @@ def evaluate_frozen_policy(
                 + episode_index
             )
         )
+
+        step_index = 0
 
         while True:
             mask = np.asarray(
@@ -165,19 +249,47 @@ def evaluate_frozen_policy(
                 deterministic=True,
             )
 
+            action_index = int(
+                np.asarray(
+                    action
+                ).item()
+            )
+
             (
                 observation,
-                _,
+                reward,
                 terminated,
                 truncated,
-                _,
+                info,
             ) = env.step(
-                int(
-                    np.asarray(
-                        action
-                    ).item()
-                )
+                action_index
             )
+
+            if verbose_steps:
+                print(
+                    'RL_DEMO_STEP '
+                    f'episode={episode_index} '
+                    f'step={step_index} '
+                    f'action={action_index} '
+                    f'valid_actions='
+                    f'{int(np.count_nonzero(mask))} '
+                    f'reward={float(reward):.6f} '
+                    f'area_gain_m2='
+                    f'{float(info["area_gain_m2"]):.6f} '
+                    f'path_delta_m='
+                    f'{float(info["path_delta_m"]):.6f} '
+                    f'goal=('
+                    f'{float(info["goal_x"]):.3f},'
+                    f'{float(info["goal_y"]):.3f}) '
+                    f'nav_status='
+                    f'{info["navigation_status"]} '
+                    f'nav_success='
+                    f'{bool(info["navigation_succeeded"])} '
+                    f'terminated={bool(terminated)} '
+                    f'truncated={bool(truncated)}'
+                )
+
+            step_index += 1
 
             if (
                 terminated
@@ -253,7 +365,9 @@ def main(argv=None):
     env = None
 
     try:
-        raw_env = FreshSessionEnv()
+        raw_env = build_evaluation_env(
+            args
+        )
 
         env = RecordedTrainingEnv(
             raw_env,
@@ -331,11 +445,24 @@ def main(argv=None):
             'learning_enabled: False'
         )
 
+        print(
+            'visual_simulation: '
+            f'{bool(args.visual)}'
+        )
+
+        print(
+            'verbose_steps: '
+            f'{bool(args.verbose_steps)}'
+        )
+
         evaluate_frozen_policy(
             model=model,
             env=env,
             episodes=args.episodes,
             seed=args.seed,
+            verbose_steps=(
+                args.verbose_steps
+            ),
         )
 
         final_fingerprint = (
@@ -390,6 +517,12 @@ def main(argv=None):
                 ),
                 'learning_enabled': False,
                 'deterministic_actions': True,
+                'visual_simulation': bool(
+                    args.visual
+                ),
+                'verbose_steps': bool(
+                    args.verbose_steps
+                ),
             }
         )
 

@@ -432,6 +432,31 @@ No policy optimization occurs during this command.
 
 ---
 
+## Visual Frozen-Policy Demo
+
+For a presentation or portfolio recording, run the trained checkpoint with
+Gazebo and RViz visible while printing each policy decision and physical
+transition:
+
+```bash
+python3 -m active_slam_rl.rl_eval \
+  --checkpoint /path/to/model.zip \
+  --episodes 1 \
+  --run-id visual_demo \
+  --run-kind diagnostic \
+  --seed 0 \
+  --device cpu \
+  --visual \
+  --verbose-steps \
+  --evidence-root "$HOME/active-slam-rl-evidence"
+```
+
+The visual mode still uses the frozen evaluation contract: deterministic
+masked actions, zero PPO optimization updates, and unchanged policy
+fingerprints before and after the episode.
+
+---
+
 ## Research Limitations
 
 This repository intentionally documents limitations rather than hiding them.
