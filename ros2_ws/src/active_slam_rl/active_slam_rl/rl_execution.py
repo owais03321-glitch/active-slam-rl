@@ -1,3 +1,14 @@
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class RlActionOutcome:
+    """Completed RL action with Nav2 and physical transition outcomes."""
+
+    navigation: object
+    transition: object
+
+
 class RlActionCoordinator:
     """Coordinate one RL frontier action with transition accounting."""
 
@@ -7,10 +18,12 @@ class RlActionCoordinator:
         env,
         transition_tracker,
         nav_executor,
+        visited_goals,
     ):
         self.env = env
         self.transition_tracker = transition_tracker
         self.nav_executor = nav_executor
+        self.visited_goals = visited_goals
 
     def start_action(
         self,
@@ -46,3 +59,46 @@ class RlActionCoordinator:
             raise
 
         return start
+
+    def complete_action(
+        self,
+        *,
+        end_area_m2,
+        end_path_m,
+        timeout=None,
+    ):
+        """Wait for Nav2 and complete one goal-aligned RL transition."""
+
+        if not self.transition_tracker.active:
+            raise RuntimeError(
+                'No RL action transition is active.'
+            )
+
+        navigation = (
+            self.nav_executor.wait_for_completion(
+                timeout=timeout
+            )
+        )
+
+        if navigation is None:
+            return None
+
+        transition = (
+            self.transition_tracker.complete(
+                end_area_m2=end_area_m2,
+                end_path_m=end_path_m,
+            )
+        )
+
+        if navigation.succeeded:
+            self.visited_goals.append(
+                (
+                    transition.start.goal_x,
+                    transition.start.goal_y,
+                )
+            )
+
+        return RlActionOutcome(
+            navigation=navigation,
+            transition=transition,
+        )
