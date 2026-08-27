@@ -1,3 +1,6 @@
+import numpy as np
+
+
 class RlGymStepBridge:
     """Execute one synchronous Gym action over live ROS navigation."""
 
@@ -7,10 +10,25 @@ class RlGymStepBridge:
         start_action,
         complete_action,
         observation_sync,
+        truncation_check=None,
     ):
         self.start_action = start_action
         self.complete_action = complete_action
         self.observation_sync = observation_sync
+
+        if (
+            truncation_check is not None
+            and not callable(
+                truncation_check
+            )
+        ):
+            raise TypeError(
+                'truncation_check must be callable.'
+            )
+
+        self.truncation_check = (
+            truncation_check
+        )
 
     def step(
         self,
@@ -44,9 +62,37 @@ class RlGymStepBridge:
             metrics.reward
         )
 
-        terminated = False
-        truncated = bool(
-            outcome.truncated
+        action_mask = np.asarray(
+            observation[
+                'action_mask'
+            ],
+            dtype=bool,
+        ).reshape(-1)
+
+        frontier_exhausted = (
+            np.count_nonzero(
+                action_mask
+            )
+            == 0
+        )
+
+        horizon_due = False
+
+        if self.truncation_check is not None:
+            horizon_due = bool(
+                self.truncation_check()
+            )
+
+        truncated = (
+            bool(
+                outcome.truncated
+            )
+            or horizon_due
+        )
+
+        terminated = (
+            frontier_exhausted
+            and not truncated
         )
 
         info = {

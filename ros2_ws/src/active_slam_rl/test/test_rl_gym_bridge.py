@@ -165,7 +165,7 @@ def test_failed_navigation_still_returns_physical_transition():
     )
 
 
-def test_empty_next_frontier_does_not_terminate_transition():
+def test_empty_next_frontier_terminates_transition():
     outcome = make_outcome()
 
     observation = make_observation(
@@ -199,7 +199,7 @@ def test_empty_next_frontier_does_not_terminate_transition():
         0,
     ]
 
-    assert terminated is False
+    assert terminated is True
     assert truncated is False
 
 
@@ -289,3 +289,38 @@ def test_horizon_outcome_sets_truncated_without_termination():
     ] == pytest.approx(
         2.5
     )
+
+
+
+def test_horizon_becoming_due_during_observation_sync_truncates():
+    outcome = make_outcome(
+        truncated=False,
+    )
+
+    observation = make_observation(
+        active_slots=0,
+    )
+
+    bridge = RlGymStepBridge(
+        start_action=lambda action: None,
+        complete_action=(
+            lambda *, timeout: outcome
+        ),
+        observation_sync=(
+            lambda: observation
+        ),
+        truncation_check=(
+            lambda: True
+        ),
+    )
+
+    (
+        _,
+        _,
+        terminated,
+        truncated,
+        _,
+    ) = bridge.step(0)
+
+    assert terminated is False
+    assert truncated is True

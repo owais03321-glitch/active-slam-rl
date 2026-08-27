@@ -1263,6 +1263,7 @@ def test_actionable_sync_waits_through_transient_zero_frontier(
 ):
     class ActiveEpisodeLimit:
         active = True
+        truncated = False
 
     node.episode_time_limit = (
         ActiveEpisodeLimit()
@@ -1329,3 +1330,63 @@ def test_actionable_sync_waits_through_transient_zero_frontier(
     ]
 
     assert len(waits) == 1
+
+
+def test_actionable_sync_returns_zero_after_persistent_exhaustion(
+    node,
+    monkeypatch,
+):
+    class ActiveEpisodeLimit:
+        active = True
+        truncated = False
+
+    node.episode_time_limit = (
+        ActiveEpisodeLimit()
+    )
+
+    zero = (
+        node.env
+        ._make_empty_observation()
+    )
+
+    monkeypatch.setattr(
+        node,
+        'sync_env_to_latest_frontier',
+        lambda: {
+            key: value.copy()
+            for key, value
+            in zero.items()
+        },
+    )
+
+    waits = []
+
+    def fake_wait(
+        *,
+        after_revision,
+    ):
+        waits.append(
+            after_revision
+        )
+
+        return True
+
+    monkeypatch.setattr(
+        node,
+        'wait_for_fresh_map_or_horizon',
+        fake_wait,
+    )
+
+    result = (
+        node.sync_env_to_actionable_frontier(
+            max_zero_frontier_observations=3
+        )
+    )
+
+    assert result[
+        'action_mask'
+    ].sum() == 0
+
+    # First zero is immediate, then two fresh-map
+    # confirmations establish persistent exhaustion.
+    assert len(waits) == 2

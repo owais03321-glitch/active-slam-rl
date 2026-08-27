@@ -136,6 +136,12 @@ class RlObservationNode(Node):
                 observation_sync=(
                     self.sync_env_to_actionable_frontier
                 ),
+                truncation_check=(
+                    lambda: (
+                        self.episode_time_limit
+                        .truncated
+                    )
+                ),
             )
         )
 
@@ -355,8 +361,20 @@ class RlObservationNode(Node):
             robot_y=robot_y,
         )
 
-    def sync_env_to_actionable_frontier(self):
-        """Return a non-empty decision snapshot or horizon state."""
+    def sync_env_to_actionable_frontier(
+        self,
+        *,
+        max_zero_frontier_observations=3,
+    ):
+        """Confirm persistent frontier exhaustion before returning zero."""
+
+        if max_zero_frontier_observations <= 0:
+            raise ValueError(
+                'max_zero_frontier_observations '
+                'must be positive.'
+            )
+
+        zero_observations = 0
 
         while True:
             observation = (
@@ -370,7 +388,18 @@ class RlObservationNode(Node):
             ) > 0:
                 return observation
 
+            zero_observations += 1
+
             if not self.episode_time_limit.active:
+                return observation
+
+            if self.episode_time_limit.truncated:
+                return observation
+
+            if (
+                zero_observations
+                >= max_zero_frontier_observations
+            ):
                 return observation
 
             revision = self.map_revision
