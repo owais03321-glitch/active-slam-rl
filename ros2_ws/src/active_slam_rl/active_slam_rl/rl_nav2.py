@@ -59,6 +59,8 @@ class Nav2GoalExecutor:
         self._active = False
         self._current_goal = None
         self._completion = None
+        self._goal_handle = None
+        self._cancel_requested = False
         self._completion_event = Event()
         self._state_lock = RLock()
 
@@ -124,6 +126,8 @@ class Nav2GoalExecutor:
                 goal_y,
             )
             self._completion = None
+            self._goal_handle = None
+            self._cancel_requested = False
             self._completion_event.clear()
 
         try:
@@ -137,6 +141,8 @@ class Nav2GoalExecutor:
             with self._state_lock:
                 self._active = False
                 self._current_goal = None
+                self._goal_handle = None
+                self._cancel_requested = False
             raise
 
         future.add_done_callback(
@@ -164,6 +170,8 @@ class Nav2GoalExecutor:
             self._completion = completion
             self._active = False
             self._current_goal = None
+            self._goal_handle = None
+            self._cancel_requested = False
 
             self._completion_event.set()
 
@@ -182,6 +190,12 @@ class Nav2GoalExecutor:
             )
             return
 
+        with self._state_lock:
+            self._goal_handle = goal_handle
+            cancel_requested = (
+                self._cancel_requested
+            )
+
         result_future = (
             goal_handle.get_result_async()
         )
@@ -189,6 +203,9 @@ class Nav2GoalExecutor:
         result_future.add_done_callback(
             self._navigation_result_callback
         )
+
+        if cancel_requested:
+            goal_handle.cancel_goal_async()
 
     def _navigation_result_callback(
         self,
@@ -200,6 +217,24 @@ class Nav2GoalExecutor:
             accepted=True,
             status=result.status,
         )
+
+    def request_cancel(self):
+        """Request cancellation of the active Nav2 goal once."""
+
+        with self._state_lock:
+            if not self._active:
+                return False
+
+            if self._cancel_requested:
+                return True
+
+            self._cancel_requested = True
+            goal_handle = self._goal_handle
+
+        if goal_handle is not None:
+            goal_handle.cancel_goal_async()
+
+        return True
 
     def wait_for_completion(
         self,

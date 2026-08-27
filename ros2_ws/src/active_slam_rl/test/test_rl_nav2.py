@@ -47,9 +47,14 @@ class FakeGoalHandle:
     ):
         self.accepted = accepted
         self.result_future = result_future
+        self.cancel_calls = 0
 
     def get_result_async(self):
         return self.result_future
+
+    def cancel_goal_async(self):
+        self.cancel_calls += 1
+        return FakeFuture()
 
 
 class FakeActionClient:
@@ -350,3 +355,114 @@ def test_wait_for_completion_unblocks_across_threads():
     assert completion.goal_y == pytest.approx(
         2.0
     )
+
+
+def test_cancel_request_is_false_without_active_goal():
+    executor = Nav2GoalExecutor(
+        action_client=FakeActionClient()
+    )
+
+    assert executor.request_cancel() is False
+    assert executor.active is False
+
+
+def test_accepted_goal_cancel_request_is_idempotent():
+    action_client = FakeActionClient()
+    result_future = FakeFuture()
+
+    goal_handle = FakeGoalHandle(
+        accepted=True,
+        result_future=result_future,
+    )
+
+    executor = Nav2GoalExecutor(
+        action_client=action_client
+    )
+
+    executor.start(
+        x=1.0,
+        y=2.0,
+        stamp=Time(),
+    )
+
+    action_client.send_future.resolve(
+        goal_handle
+    )
+
+    assert executor.active is True
+
+    assert executor.request_cancel() is True
+    assert executor.request_cancel() is True
+
+    assert goal_handle.cancel_calls == 1
+    assert executor.active is True
+
+    result_future.resolve(
+        FakeResult(
+            status=GoalStatus.STATUS_CANCELED,
+        )
+    )
+
+    completion = executor.wait_for_completion(
+        timeout=0.0
+    )
+
+    assert completion is not None
+    assert completion.accepted is True
+    assert (
+        completion.status
+        == GoalStatus.STATUS_CANCELED
+    )
+    assert completion.succeeded is False
+
+    assert executor.active is False
+    assert executor.request_cancel() is False
+
+
+def test_cancel_before_goal_acceptance_is_deferred():
+    action_client = FakeActionClient()
+    result_future = FakeFuture()
+
+    goal_handle = FakeGoalHandle(
+        accepted=True,
+        result_future=result_future,
+    )
+
+    executor = Nav2GoalExecutor(
+        action_client=action_client
+    )
+
+    executor.start(
+        x=3.0,
+        y=4.0,
+        stamp=Time(),
+    )
+
+    assert executor.request_cancel() is True
+
+    assert goal_handle.cancel_calls == 0
+    assert executor.active is True
+
+    action_client.send_future.resolve(
+        goal_handle
+    )
+
+    assert goal_handle.cancel_calls == 1
+    assert executor.active is True
+
+    result_future.resolve(
+        FakeResult(
+            status=GoalStatus.STATUS_CANCELED,
+        )
+    )
+
+    completion = executor.wait_for_completion(
+        timeout=0.0
+    )
+
+    assert completion is not None
+    assert (
+        completion.status
+        == GoalStatus.STATUS_CANCELED
+    )
+    assert executor.active is False
