@@ -105,6 +105,15 @@ class RlObservationNode(Node):
             )
         )
 
+        self._episode_cutoff_measurements = None
+
+        self.episode_watchdog = self.create_timer(
+            self.episode_time_limit.horizon_s,
+            self._episode_horizon_callback,
+            clock=self.get_clock(),
+            autostart=False,
+        )
+
         self.action_coordinator = (
             RlActionCoordinator(
                 env=self.env,
@@ -311,6 +320,61 @@ class RlObservationNode(Node):
             robot_y=robot_y,
         )
 
+    def episode_cutoff_measurements(self):
+        """Return frozen horizon measurements, if captured."""
+
+        with self._state_lock:
+            if self._episode_cutoff_measurements is None:
+                return None
+
+            return tuple(
+                self._episode_cutoff_measurements
+            )
+
+    def _capture_episode_cutoff_if_due(self):
+        """Freeze metrics and cancel Nav2 once the ROS horizon is due."""
+
+        if not self.episode_time_limit.active:
+            return False
+
+        if not self.episode_time_limit.truncated:
+            return False
+
+        with self._state_lock:
+            if self._episode_cutoff_measurements is not None:
+                return False
+
+            if self.latest_explored_area_m2 is None:
+                raise RuntimeError(
+                    'Explored-area measurement is not available '
+                    'at the episode horizon.'
+                )
+
+            if self.path_tracker.last_xy is None:
+                raise RuntimeError(
+                    'Odometry measurement is not available '
+                    'at the episode horizon.'
+                )
+
+            self._episode_cutoff_measurements = (
+                float(
+                    self.latest_explored_area_m2
+                ),
+                float(
+                    self.path_tracker.path_length_m
+                ),
+            )
+
+        self.episode_watchdog.cancel()
+        self.nav_executor.request_cancel()
+
+        return True
+
+    def _episode_horizon_callback(self):
+        """Handle the ROS-time episode horizon."""
+
+        self._capture_episode_cutoff_if_due()
+
     def current_transition_measurements(self):
         """Return cumulative measurements required to start/finish RL."""
 
@@ -353,7 +417,17 @@ class RlObservationNode(Node):
             stamp=stamp,
         )
 
+        episode_was_active = (
+            self.episode_time_limit.active
+        )
+
         self.episode_time_limit.start()
+
+        if not episode_was_active:
+            with self._state_lock:
+                self._episode_cutoff_measurements = None
+
+            self.episode_watchdog.reset()
 
         return start
 
@@ -364,29 +438,28 @@ class RlObservationNode(Node):
     ):
         """Wait for Nav2 and complete the active RL transition."""
 
-        cancel_on_timeout = False
-
-        if timeout is None:
-            if not self.episode_time_limit.active:
-                raise RuntimeError(
-                    'Episode time limit has not started.'
-                )
-
-            timeout = (
-                self.episode_time_limit.remaining_s
+        if (
+            timeout is None
+            and not self.episode_time_limit.active
+        ):
+            raise RuntimeError(
+                'Episode time limit has not started.'
             )
-
-            cancel_on_timeout = True
 
         return self.action_coordinator.complete_action(
             measurement_provider=(
                 self.current_transition_measurements
             ),
             timeout=timeout,
-            cancel_on_timeout=cancel_on_timeout,
+            cancel_on_timeout=False,
+            cutoff_provider=(
+                self.episode_cutoff_measurements
+            ),
         )
 
     def odom_callback(self, msg):
+        self._capture_episode_cutoff_if_due()
+
         with self._state_lock:
             self.path_tracker.update(
                 x=msg.pose.pose.position.x,
@@ -394,6 +467,8 @@ class RlObservationNode(Node):
             )
 
     def map_callback(self, msg):
+        self._capture_episode_cutoff_if_due()
+
         try:
             robot_x, robot_y = (
                 self._lookup_robot_position()

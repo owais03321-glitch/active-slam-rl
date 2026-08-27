@@ -380,6 +380,7 @@ def test_complete_rl_action_passes_live_measurement_provider(
         measurement_provider,
         timeout,
         cancel_on_timeout,
+        cutoff_provider,
     ):
         captured['provider'] = (
             measurement_provider
@@ -387,6 +388,9 @@ def test_complete_rl_action_passes_live_measurement_provider(
         captured['timeout'] = timeout
         captured['cancel_on_timeout'] = (
             cancel_on_timeout
+        )
+        captured['cutoff_provider'] = (
+            cutoff_provider
         )
         return 'completed'
 
@@ -409,6 +413,10 @@ def test_complete_rl_action_passes_live_measurement_provider(
     assert (
         captured['cancel_on_timeout']
         is False
+    )
+
+    assert callable(
+        captured['cutoff_provider']
     )
 
 
@@ -618,7 +626,7 @@ def test_failed_action_does_not_start_episode_clock(
     )
 
 
-def test_default_completion_uses_remaining_episode_budget(
+def test_default_completion_uses_ros_watchdog_cutoff_provider(
     node,
     monkeypatch,
 ):
@@ -627,7 +635,6 @@ def test_default_completion_uses_remaining_episode_budget(
     class FakeEpisodeLimit:
 
         active = True
-        remaining_s = 12.75
 
     node.episode_time_limit = (
         FakeEpisodeLimit()
@@ -638,6 +645,7 @@ def test_default_completion_uses_remaining_episode_budget(
         measurement_provider,
         timeout,
         cancel_on_timeout,
+        cutoff_provider,
     ):
         captured['provider'] = (
             measurement_provider
@@ -645,6 +653,9 @@ def test_default_completion_uses_remaining_episode_budget(
         captured['timeout'] = timeout
         captured['cancel_on_timeout'] = (
             cancel_on_timeout
+        )
+        captured['cutoff_provider'] = (
+            cutoff_provider
         )
 
         return 'horizon-completed'
@@ -663,13 +674,15 @@ def test_default_completion_uses_remaining_episode_budget(
         captured['provider']
     )
 
-    assert captured['timeout'] == pytest.approx(
-        12.75
-    )
+    assert captured['timeout'] is None
 
     assert (
         captured['cancel_on_timeout']
-        is True
+        is False
+    )
+
+    assert callable(
+        captured['cutoff_provider']
     )
 
 
@@ -768,4 +781,273 @@ def test_wait_for_map_revision_unblocks_on_new_map(
             timeout=0.0,
         )
         is None
+    )
+
+
+def test_first_action_arms_episode_watchdog_only_once(
+    node,
+    monkeypatch,
+):
+    from nav_msgs.msg import Odometry
+
+    msg = make_two_frontier_map()
+
+    node.update_from_map(
+        msg,
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    odom = Odometry()
+    odom.pose.pose.position.x = 0.0
+    odom.pose.pose.position.y = 0.0
+    node.odom_callback(odom)
+
+    node.sync_env_to_latest_frontier()
+
+    class FakeWatchdog:
+
+        def __init__(self):
+            self.reset_calls = 0
+            self.cancel_calls = 0
+
+        def reset(self):
+            self.reset_calls += 1
+
+        def cancel(self):
+            self.cancel_calls += 1
+
+    watchdog = FakeWatchdog()
+
+    node.episode_watchdog = watchdog
+
+    monkeypatch.setattr(
+        node.action_coordinator,
+        'start_action',
+        lambda **kwargs: 'started',
+    )
+
+    assert node.start_rl_action(0) == 'started'
+    assert node.start_rl_action(0) == 'started'
+
+    assert watchdog.reset_calls == 1
+
+    assert (
+        node.episode_time_limit.active
+        is True
+    )
+
+
+def test_horizon_callback_freezes_measurements_and_cancels_once(
+    node,
+    monkeypatch,
+):
+    from nav_msgs.msg import Odometry
+
+    msg = make_two_frontier_map()
+
+    node.update_from_map(
+        msg,
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    first = Odometry()
+    first.pose.pose.position.x = 0.0
+    first.pose.pose.position.y = 0.0
+    node.odom_callback(first)
+
+    second = Odometry()
+    second.pose.pose.position.x = 0.3
+    second.pose.pose.position.y = 0.4
+    node.odom_callback(second)
+
+    class FakeEpisodeLimit:
+
+        active = True
+        truncated = True
+
+    class FakeWatchdog:
+
+        def __init__(self):
+            self.cancel_calls = 0
+
+        def cancel(self):
+            self.cancel_calls += 1
+
+    watchdog = FakeWatchdog()
+    cancel_calls = []
+
+    node.episode_time_limit = FakeEpisodeLimit()
+    node.episode_watchdog = watchdog
+
+    monkeypatch.setattr(
+        node.nav_executor,
+        'request_cancel',
+        lambda: cancel_calls.append(True) or True,
+    )
+
+    node._episode_horizon_callback()
+    node._episode_horizon_callback()
+
+    assert (
+        node.episode_cutoff_measurements()
+        == pytest.approx(
+            (
+                140.0,
+                0.5,
+            )
+        )
+    )
+
+    assert watchdog.cancel_calls == 1
+    assert cancel_calls == [True]
+
+
+def test_post_horizon_odom_is_excluded_from_cutoff(
+    node,
+    monkeypatch,
+):
+    from nav_msgs.msg import Odometry
+
+    msg = make_two_frontier_map()
+
+    node.update_from_map(
+        msg,
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    first = Odometry()
+    first.pose.pose.position.x = 0.0
+    first.pose.pose.position.y = 0.0
+    node.odom_callback(first)
+
+    second = Odometry()
+    second.pose.pose.position.x = 0.3
+    second.pose.pose.position.y = 0.4
+    node.odom_callback(second)
+
+    class FakeEpisodeLimit:
+
+        active = True
+        truncated = True
+
+    class FakeWatchdog:
+
+        def cancel(self):
+            pass
+
+    node.episode_time_limit = FakeEpisodeLimit()
+    node.episode_watchdog = FakeWatchdog()
+
+    monkeypatch.setattr(
+        node.nav_executor,
+        'request_cancel',
+        lambda: True,
+    )
+
+    third = Odometry()
+    third.pose.pose.position.x = 0.6
+    third.pose.pose.position.y = 0.8
+
+    node.odom_callback(third)
+
+    cutoff_area_m2, cutoff_path_m = (
+        node.episode_cutoff_measurements()
+    )
+
+    assert cutoff_area_m2 == pytest.approx(
+        140.0
+    )
+
+    assert cutoff_path_m == pytest.approx(
+        0.5
+    )
+
+    assert (
+        node.path_tracker.path_length_m
+        == pytest.approx(1.0)
+    )
+
+
+def test_post_horizon_map_is_excluded_from_cutoff(
+    node,
+    monkeypatch,
+):
+    from nav_msgs.msg import Odometry
+
+    initial = make_two_frontier_map()
+
+    node.update_from_map(
+        initial,
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    odom = Odometry()
+    odom.pose.pose.position.x = 0.0
+    odom.pose.pose.position.y = 0.0
+    node.odom_callback(odom)
+
+    changed = make_two_frontier_map()
+
+    unknown_index = next(
+        index
+        for index, value
+        in enumerate(changed.data)
+        if value == -1
+    )
+
+    changed.data[
+        unknown_index
+    ] = 0
+
+    class FakeEpisodeLimit:
+
+        active = True
+        truncated = True
+
+    class FakeWatchdog:
+
+        def cancel(self):
+            pass
+
+    node.episode_time_limit = FakeEpisodeLimit()
+    node.episode_watchdog = FakeWatchdog()
+
+    monkeypatch.setattr(
+        node.nav_executor,
+        'request_cancel',
+        lambda: True,
+    )
+
+    monkeypatch.setattr(
+        node,
+        '_lookup_robot_position',
+        lambda: (
+            0.0,
+            0.0,
+        ),
+    )
+
+    node.map_callback(
+        changed
+    )
+
+    cutoff_area_m2, cutoff_path_m = (
+        node.episode_cutoff_measurements()
+    )
+
+    assert cutoff_area_m2 == pytest.approx(
+        140.0
+    )
+
+    assert cutoff_path_m == pytest.approx(
+        0.0
+    )
+
+    assert (
+        node.latest_explored_area_m2
+        == pytest.approx(141.0)
     )
