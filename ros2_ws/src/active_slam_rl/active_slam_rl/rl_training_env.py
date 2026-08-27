@@ -1,7 +1,12 @@
+import time
+
 import gymnasium as gym
 
 from active_slam_rl.rl_env import ActiveSlamEnv
 from active_slam_rl.rl_session import FreshRlSession
+
+
+DEFAULT_SESSION_SETTLE_S = 3.0
 
 
 class FreshSessionEnv(gym.Env):
@@ -14,6 +19,8 @@ class FreshSessionEnv(gym.Env):
         *,
         session_factory=FreshRlSession,
         max_start_attempts=3,
+        session_settle_s=DEFAULT_SESSION_SETTLE_S,
+        sleep=time.sleep,
     ):
         super().__init__()
 
@@ -47,6 +54,25 @@ class FreshSessionEnv(gym.Env):
         self.max_start_attempts = (
             max_start_attempts
         )
+
+        if session_settle_s < 0.0:
+            raise ValueError(
+                'session_settle_s must be '
+                'nonnegative.'
+            )
+
+        if not callable(
+            sleep
+        ):
+            raise TypeError(
+                'sleep must be callable.'
+            )
+
+        self.session_settle_s = float(
+            session_settle_s
+        )
+
+        self._sleep = sleep
 
         # Stable Gym spaces must exist before the first physical
         # reset because SB3 inspects them while constructing a model.
@@ -88,6 +114,24 @@ class FreshSessionEnv(gym.Env):
 
         return live_env
 
+    def _settle_after_session(
+        self,
+        *,
+        reason,
+    ):
+        if self.session_settle_s <= 0.0:
+            return
+
+        print(
+            'FRESH_SESSION_SETTLE '
+            f'reason={reason} '
+            f'seconds={self.session_settle_s}'
+        )
+
+        self._sleep(
+            self.session_settle_s
+        )
+
     def reset(
         self,
         *,
@@ -110,6 +154,10 @@ class FreshSessionEnv(gym.Env):
 
         if previous_session is not None:
             previous_session.close()
+
+            self._settle_after_session(
+                reason='episode_reset'
+            )
 
         for attempt in range(
             1,
@@ -146,6 +194,10 @@ class FreshSessionEnv(gym.Env):
                     >= self.max_start_attempts
                 ):
                     raise
+
+                self._settle_after_session(
+                    reason='startup_retry'
+                )
 
                 continue
 

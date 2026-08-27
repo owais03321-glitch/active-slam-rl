@@ -177,6 +177,7 @@ class SessionFactory:
 
 def test_spaces_exist_before_first_physical_reset():
     env = FreshSessionEnv(
+        session_settle_s=0.0,
         session_factory=lambda: None
     )
 
@@ -217,6 +218,7 @@ def test_first_reset_starts_one_fresh_session():
     )
 
     env = FreshSessionEnv(
+        session_settle_s=0.0,
         session_factory=SessionFactory(
             [
                 session,
@@ -273,6 +275,7 @@ def test_second_reset_closes_old_session_before_constructing_new():
     )
 
     env = FreshSessionEnv(
+        session_settle_s=0.0,
         session_factory=SessionFactory(
             [
                 first,
@@ -318,6 +321,7 @@ def test_step_and_action_masks_delegate_to_live_environment():
     )
 
     env = FreshSessionEnv(
+        session_settle_s=0.0,
         session_factory=SessionFactory(
             [
                 session,
@@ -399,6 +403,7 @@ def test_close_is_idempotent_and_disables_live_interaction():
     )
 
     env = FreshSessionEnv(
+        session_settle_s=0.0,
         session_factory=SessionFactory(
             [
                 session,
@@ -451,6 +456,7 @@ def test_failed_replacement_reset_fails_closed_and_cleans_new_session():
     )
 
     env = FreshSessionEnv(
+        session_settle_s=0.0,
         session_factory=SessionFactory(
             [
                 first,
@@ -521,6 +527,7 @@ def test_reset_retries_timeout_with_completely_fresh_session():
     )
 
     env = FreshSessionEnv(
+        session_settle_s=0.0,
         session_factory=SessionFactory(
             [
                 timed_out,
@@ -577,6 +584,7 @@ def test_reset_stops_after_bounded_timeout_attempts():
     )
 
     env = FreshSessionEnv(
+        session_settle_s=0.0,
         session_factory=SessionFactory(
             [
                 first,
@@ -614,6 +622,7 @@ def test_max_start_attempts_must_be_positive_integer():
         match='positive integer',
     ):
         FreshSessionEnv(
+        session_settle_s=0.0,
             max_start_attempts=0
         )
 
@@ -622,5 +631,136 @@ def test_max_start_attempts_must_be_positive_integer():
         match='positive integer',
     ):
         FreshSessionEnv(
+        session_settle_s=0.0,
             max_start_attempts=True
+        )
+
+
+def test_physical_episode_reset_settles_before_relaunch():
+    events = []
+    sleeps = []
+
+    first = FakeSession(
+        name='first',
+        observation=make_observation(
+            active_action=1
+        ),
+        events=events,
+    )
+
+    second = FakeSession(
+        name='second',
+        observation=make_observation(
+            active_action=2
+        ),
+        events=events,
+    )
+
+    env = FreshSessionEnv(
+        session_factory=SessionFactory(
+            [
+                first,
+                second,
+            ],
+            events,
+        ),
+        max_start_attempts=1,
+        session_settle_s=3.0,
+        sleep=sleeps.append,
+    )
+
+    env.reset()
+
+    assert sleeps == []
+
+    env.reset()
+
+    assert sleeps == [
+        3.0,
+    ]
+
+    assert events == [
+        'first:construct',
+        'first:start',
+        'first:close',
+        'second:construct',
+        'second:start',
+    ]
+
+    env.close()
+
+
+def test_timeout_retry_settles_before_fresh_attempt():
+    events = []
+    sleeps = []
+
+    timed_out = TimeoutStartSession(
+        name='timeout',
+        observation=make_observation(
+            active_action=1
+        ),
+        events=events,
+    )
+
+    recovered = FakeSession(
+        name='recovered',
+        observation=make_observation(
+            active_action=4
+        ),
+        events=events,
+    )
+
+    env = FreshSessionEnv(
+        session_factory=SessionFactory(
+            [
+                timed_out,
+                recovered,
+            ],
+            events,
+        ),
+        max_start_attempts=2,
+        session_settle_s=3.0,
+        sleep=sleeps.append,
+    )
+
+    observation, _ = env.reset()
+
+    assert sleeps == [
+        3.0,
+    ]
+
+    assert (
+        observation[
+            'action_mask'
+        ][4]
+        == 1
+    )
+
+    assert events == [
+        'timeout:construct',
+        'timeout:start',
+        'timeout:close',
+        'recovered:construct',
+        'recovered:start',
+    ]
+
+    env.close()
+
+
+def test_session_settle_configuration_validation():
+    with pytest.raises(
+        ValueError,
+        match='session_settle_s',
+    ):
+        FreshSessionEnv(
+            session_settle_s=-0.1,
+        )
+
+    with pytest.raises(
+        TypeError,
+        match='sleep must be callable',
+    ):
+        FreshSessionEnv(
+            session_settle_s=0.0,
+            sleep=None,
         )

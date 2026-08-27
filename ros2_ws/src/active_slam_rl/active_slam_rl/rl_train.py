@@ -22,6 +22,7 @@ from active_slam_rl.rl_recording_env import (
     RecordedTrainingEnv,
 )
 from active_slam_rl.rl_training_env import (
+    DEFAULT_SESSION_SETTLE_S,
     FreshSessionEnv,
 )
 
@@ -326,6 +327,9 @@ def training_config(
         ),
         'fresh_physical_session_per_episode': (
             True
+        ),
+        'session_settle_s': float(
+            DEFAULT_SESSION_SETTLE_S
         ),
         'action_masking_required': (
             True
