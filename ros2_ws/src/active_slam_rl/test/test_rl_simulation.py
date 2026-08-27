@@ -18,6 +18,7 @@ class FakeProcess:
     ):
         self.pid = pid
         self.returncode = None
+        self.reaped = False
         self.wait_timeouts = []
 
     def poll(self):
@@ -37,6 +38,8 @@ class FakeProcess:
                 cmd='simulation',
                 timeout=timeout,
             )
+
+        self.reaped = True
 
         return self.returncode
 
@@ -363,4 +366,80 @@ def test_stop_escalates_to_sigkill():
     ]
 
     assert lifecycle.stop() is False
+    assert lifecycle.running is False
+
+
+def test_running_reaps_exited_launch_parent_before_group_check():
+    process = FakeProcess(
+        pid=9006
+    )
+
+    lifecycle = SimulationLifecycle(
+        popen_factory=(
+            lambda *args, **kwargs: process
+        ),
+        group_exists=(
+            lambda pgid: not process.reaped
+        ),
+    )
+
+    lifecycle.start()
+
+    # The launch parent has exited but remains visible as a zombie
+    # until its Python parent calls wait().
+    process.returncode = 0
+
+    assert process.reaped is False
+
+    assert lifecycle.running is False
+
+    assert process.reaped is True
+
+
+def test_stop_reaps_zombie_launch_parent_during_group_wait():
+    process = FakeProcess(
+        pid=9007
+    )
+
+    signals = []
+
+    def fake_killpg(
+        pgid,
+        stop_signal,
+    ):
+        signals.append(
+            (
+                pgid,
+                stop_signal,
+            )
+        )
+
+        # SIGINT causes the ros2-launch parent to exit. The fake group
+        # remains visible until FakeProcess.wait() reaps that parent.
+        process.returncode = 0
+
+    lifecycle = SimulationLifecycle(
+        popen_factory=(
+            lambda *args, **kwargs: process
+        ),
+        killpg=fake_killpg,
+        group_exists=(
+            lambda pgid: not process.reaped
+        ),
+    )
+
+    lifecycle.start()
+
+    assert lifecycle.stop() is True
+
+    assert signals == [
+        (
+            9007,
+            signal.SIGINT,
+        )
+    ]
+
+    assert process.reaped is True
+    assert lifecycle.process is None
+    assert lifecycle.process_group_id is None
     assert lifecycle.running is False

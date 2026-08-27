@@ -100,11 +100,16 @@ class SimulationLifecycle:
     def running(self):
         """Return whether any tracked simulation process remains alive."""
 
-        return (
-            self._process_group_id is not None
-            and self._group_exists(
-                self._process_group_id
-            )
+        if self._process_group_id is None:
+            return False
+
+        # Reap an exited ros2-launch parent before checking the
+        # process group. Otherwise its zombie entry can make
+        # killpg(pgid, 0) report the group as still existing.
+        self._reap_parent_if_exited()
+
+        return self._group_exists(
+            self._process_group_id
         )
 
     def _clear_tracking(self):
@@ -175,9 +180,17 @@ class SimulationLifecycle:
             + self.shutdown_timeout_s
         )
 
-        while self._group_exists(
-            process_group_id
-        ):
+        while True:
+            # The launch parent is our direct child. Reap it as soon
+            # as it exits so a zombie parent cannot keep the process
+            # group artificially visible.
+            self._reap_parent_if_exited()
+
+            if not self._group_exists(
+                process_group_id
+            ):
+                return True
+
             remaining_s = (
                 deadline
                 - self._monotonic()
@@ -193,8 +206,6 @@ class SimulationLifecycle:
                 )
             )
 
-        return True
-
     def stop(self):
         """Stop every process in the tracked simulation group."""
 
@@ -206,10 +217,11 @@ class SimulationLifecycle:
             self._process = None
             return False
 
+        self._reap_parent_if_exited()
+
         if not self._group_exists(
             process_group_id
         ):
-            self._reap_parent_if_exited()
             self._clear_tracking()
             return False
 
