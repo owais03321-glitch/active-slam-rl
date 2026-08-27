@@ -262,3 +262,114 @@ def test_transition_measurements_return_live_cumulative_state(
 
     assert area_m2 == pytest.approx(140.0)
     assert path_m == pytest.approx(0.5)
+
+
+def test_node_wires_rl_nav2_execution_stack(node):
+    assert (
+        node.nav_executor.action_client
+        is node.nav_client
+    )
+
+    assert (
+        node.action_coordinator.env
+        is node.env
+    )
+
+    assert (
+        node.action_coordinator.transition_tracker
+        is node.transition_tracker
+    )
+
+    assert (
+        node.action_coordinator.nav_executor
+        is node.nav_executor
+    )
+
+    assert (
+        node.action_coordinator.visited_goals
+        is node.visited_goals
+    )
+
+
+def test_start_rl_action_uses_live_measurements(
+    node,
+    monkeypatch,
+):
+    from nav_msgs.msg import Odometry
+
+    msg = make_two_frontier_map()
+
+    node.update_from_map(
+        msg,
+        robot_x=0.0,
+        robot_y=0.0,
+    )
+
+    first = Odometry()
+    first.pose.pose.position.x = 0.0
+    first.pose.pose.position.y = 0.0
+    node.odom_callback(first)
+
+    second = Odometry()
+    second.pose.pose.position.x = 0.3
+    second.pose.pose.position.y = 0.4
+    node.odom_callback(second)
+
+    captured = {}
+
+    def fake_start_action(**kwargs):
+        captured.update(kwargs)
+        return 'started'
+
+    monkeypatch.setattr(
+        node.action_coordinator,
+        'start_action',
+        fake_start_action,
+    )
+
+    result = node.start_rl_action(1)
+
+    assert result == 'started'
+    assert captured['action'] == 1
+    assert captured['area_m2'] == pytest.approx(
+        140.0
+    )
+    assert captured['path_m'] == pytest.approx(
+        0.5
+    )
+
+    assert captured['stamp'] is not None
+
+
+def test_complete_rl_action_passes_live_measurement_provider(
+    node,
+    monkeypatch,
+):
+    captured = {}
+
+    def fake_complete_action(
+        *,
+        measurement_provider,
+        timeout,
+    ):
+        captured['provider'] = (
+            measurement_provider
+        )
+        captured['timeout'] = timeout
+        return 'completed'
+
+    monkeypatch.setattr(
+        node.action_coordinator,
+        'complete_action',
+        fake_complete_action,
+    )
+
+    result = node.complete_rl_action(
+        timeout=2.5
+    )
+
+    assert result == 'completed'
+    assert callable(captured['provider'])
+    assert captured['timeout'] == pytest.approx(
+        2.5
+    )

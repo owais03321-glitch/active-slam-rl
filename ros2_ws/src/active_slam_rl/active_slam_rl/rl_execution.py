@@ -63,11 +63,10 @@ class RlActionCoordinator:
     def complete_action(
         self,
         *,
-        end_area_m2,
-        end_path_m,
+        measurement_provider,
         timeout=None,
     ):
-        """Wait for Nav2 and complete one goal-aligned RL transition."""
+        """Wait for Nav2, then sample and complete the RL transition."""
 
         if not self.transition_tracker.active:
             raise RuntimeError(
@@ -82,6 +81,10 @@ class RlActionCoordinator:
 
         if navigation is None:
             return None
+
+        end_area_m2, end_path_m = (
+            measurement_provider()
+        )
 
         transition = (
             self.transition_tracker.complete(

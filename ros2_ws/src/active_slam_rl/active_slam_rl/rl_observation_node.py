@@ -1,7 +1,9 @@
 from collections import deque
 
 import rclpy
+from nav2_msgs.action import NavigateToPose
 from nav_msgs.msg import OccupancyGrid, Odometry
+from rclpy.action import ActionClient
 from rclpy.node import Node
 from rclpy.time import Time
 from tf2_ros import (
@@ -11,6 +13,12 @@ from tf2_ros import (
 )
 
 from active_slam_rl.rl_env import ActiveSlamEnv
+from active_slam_rl.rl_execution import (
+    RlActionCoordinator,
+)
+from active_slam_rl.rl_nav2 import (
+    Nav2GoalExecutor,
+)
 from active_slam_rl.rl_observation import (
     DEFAULT_MAX_CANDIDATES,
 )
@@ -21,10 +29,13 @@ from active_slam_rl.rl_ros_map import (
     eligible_frontier_candidates_from_occupancy_grid,
     explored_area_m2_from_occupancy_grid,
 )
+from active_slam_rl.rl_transition import (
+    GoalTransitionTracker,
+)
 
 
 class RlObservationNode(Node):
-    """Build live RL frontier observations from ROS map and TF data."""
+    """Build live RL frontier observations and execution state."""
 
     def __init__(
         self,
@@ -49,6 +60,31 @@ class RlObservationNode(Node):
 
         self.latest_observation, _ = (
             self.env.reset()
+        )
+
+        self.nav_client = ActionClient(
+            self,
+            NavigateToPose,
+            '/navigate_to_pose',
+        )
+
+        self.nav_executor = Nav2GoalExecutor(
+            action_client=self.nav_client,
+        )
+
+        self.transition_tracker = (
+            GoalTransitionTracker()
+        )
+
+        self.action_coordinator = (
+            RlActionCoordinator(
+                env=self.env,
+                transition_tracker=(
+                    self.transition_tracker
+                ),
+                nav_executor=self.nav_executor,
+                visited_goals=self.visited_goals,
+            )
         )
 
         self.map_subscription = (
@@ -146,6 +182,43 @@ class RlObservationNode(Node):
         return (
             float(self.latest_explored_area_m2),
             float(self.path_tracker.path_length_m),
+        )
+
+    def start_rl_action(
+        self,
+        action,
+    ):
+        """Start one RL-selected frontier using current live state."""
+
+        area_m2, path_m = (
+            self.current_transition_measurements()
+        )
+
+        stamp = (
+            self.get_clock()
+            .now()
+            .to_msg()
+        )
+
+        return self.action_coordinator.start_action(
+            action=action,
+            area_m2=area_m2,
+            path_m=path_m,
+            stamp=stamp,
+        )
+
+    def complete_rl_action(
+        self,
+        *,
+        timeout=None,
+    ):
+        """Wait for Nav2 and complete the active RL transition."""
+
+        return self.action_coordinator.complete_action(
+            measurement_provider=(
+                self.current_transition_measurements
+            ),
+            timeout=timeout,
         )
 
     def odom_callback(self, msg):
