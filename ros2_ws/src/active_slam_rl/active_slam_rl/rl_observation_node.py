@@ -17,6 +17,9 @@ from active_slam_rl.rl_env import ActiveSlamEnv
 from active_slam_rl.rl_execution import (
     RlActionCoordinator,
 )
+from active_slam_rl.rl_gym_bridge import (
+    RlGymStepBridge,
+)
 from active_slam_rl.rl_nav2 import (
     Nav2GoalExecutor,
 )
@@ -91,6 +94,20 @@ class RlObservationNode(Node):
                 visited_goals=self.visited_goals,
                 visited_goals_lock=self._state_lock,
             )
+        )
+
+        self.gym_step_bridge = (
+            RlGymStepBridge(
+                start_action=self.start_rl_action,
+                complete_action=self.complete_rl_action,
+                observation_sync=(
+                    self.sync_env_to_latest_frontier
+                ),
+            )
+        )
+
+        self.env.bind_step_bridge(
+            self.gym_step_bridge
         )
 
         self.map_subscription = (

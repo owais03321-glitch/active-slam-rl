@@ -80,6 +80,7 @@ class ActiveSlamEnv(gym.Env):
         )
 
         self._candidates = []
+        self._step_bridge = None
 
     def _make_empty_observation(self):
         return {
@@ -155,6 +156,33 @@ class ActiveSlamEnv(gym.Env):
             copy=True,
         )
 
+    @property
+    def step_bridge(self):
+        """Return the synchronous live execution bridge, if bound."""
+
+        return self._step_bridge
+
+    def bind_step_bridge(
+        self,
+        step_bridge,
+    ):
+        """Bind synchronous live execution semantics to Gym step()."""
+
+        if not callable(
+            getattr(
+                step_bridge,
+                'step',
+                None,
+            )
+        ):
+            raise TypeError(
+                'step_bridge must provide a callable step(action).'
+            )
+
+        self._step_bridge = step_bridge
+
+        return step_bridge
+
     def reset(
         self,
         *,
@@ -183,18 +211,13 @@ class ActiveSlamEnv(gym.Env):
                 f'{self.action_space}.'
             )
 
-        observation = self._copy_observation()
-        reward = 0.0
-        terminated = False
-        truncated = False
-        info = {}
+        if self._step_bridge is None:
+            raise RuntimeError(
+                'ActiveSlamEnv has no synchronous step bridge.'
+            )
 
-        return (
-            observation,
-            reward,
-            terminated,
-            truncated,
-            info,
+        return self._step_bridge.step(
+            action
         )
 
 

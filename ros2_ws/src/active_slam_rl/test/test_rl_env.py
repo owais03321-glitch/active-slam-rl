@@ -9,8 +9,46 @@ from active_slam_rl.rl_observation import (
 )
 
 
+class FakeStepBridge:
+
+    def __init__(
+        self,
+        *,
+        env,
+        result=None,
+    ):
+        self.env = env
+        self.result = result
+        self.calls = []
+
+    def step(
+        self,
+        action,
+    ):
+        self.calls.append(
+            action
+        )
+
+        if self.result is not None:
+            return self.result
+
+        return (
+            self.env._copy_observation(),
+            0.0,
+            False,
+            False,
+            {},
+        )
+
+
 def test_environment_passes_gymnasium_checker():
     env = ActiveSlamEnv()
+
+    env.bind_step_bridge(
+        FakeStepBridge(
+            env=env,
+        )
+    )
 
     check_env(
         env,
@@ -87,6 +125,71 @@ def test_invalid_action_is_rejected():
         match='Invalid action 4',
     ):
         env.step(4)
+
+    env.close()
+
+
+def test_valid_step_requires_synchronous_bridge():
+    env = ActiveSlamEnv(
+        max_candidates=4,
+    )
+
+    env.reset()
+
+    with pytest.raises(
+        RuntimeError,
+        match='no synchronous step bridge',
+    ):
+        env.step(0)
+
+    env.close()
+
+
+def test_step_delegates_to_bound_bridge():
+    env = ActiveSlamEnv(
+        max_candidates=4,
+    )
+
+    env.reset()
+
+    expected = (
+        env._copy_observation(),
+        1.25,
+        False,
+        False,
+        {
+            'source': 'fake',
+        },
+    )
+
+    bridge = FakeStepBridge(
+        env=env,
+        result=expected,
+    )
+
+    env.bind_step_bridge(
+        bridge
+    )
+
+    result = env.step(2)
+
+    assert result is expected
+    assert bridge.calls == [2]
+    assert env.step_bridge is bridge
+
+    env.close()
+
+
+def test_bind_step_bridge_rejects_invalid_interface():
+    env = ActiveSlamEnv()
+
+    with pytest.raises(
+        TypeError,
+        match='callable step',
+    ):
+        env.bind_step_bridge(
+            object()
+        )
 
     env.close()
 

@@ -294,6 +294,23 @@ def test_node_wires_rl_nav2_execution_stack(node):
         is node.visited_goals
     )
 
+    assert (
+        node.env.step_bridge
+        is node.gym_step_bridge
+    )
+
+    assert callable(
+        node.gym_step_bridge.start_action
+    )
+
+    assert callable(
+        node.gym_step_bridge.complete_action
+    )
+
+    assert callable(
+        node.gym_step_bridge.observation_sync
+    )
+
 
 def test_start_rl_action_uses_live_measurements(
     node,
