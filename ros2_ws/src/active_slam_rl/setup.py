@@ -19,6 +19,10 @@ setup(
             'share/' + package_name,
             ['package.xml'],
         ),
+        (
+            'share/' + package_name + '/config',
+            ['config/demo_rviz.rviz'],
+        ),
     ],
     install_requires=[
         'setuptools',

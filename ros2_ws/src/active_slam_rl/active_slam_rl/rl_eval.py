@@ -47,6 +47,7 @@ def simulation_command(
     x_pose=None,
     y_pose=None,
     yaw=None,
+    rviz_config_file=None,
 ):
     command = list(
         VISUAL_SIMULATION_COMMAND
@@ -63,6 +64,17 @@ def simulation_command(
             command.append(
                 f'{name}:={float(value)}'
             )
+
+    if (
+        visual
+        and rviz_config_file is not None
+    ):
+        command.append(
+            'rviz_config_file:='
+            + str(
+                rviz_config_file
+            )
+        )
 
     return tuple(
         command
@@ -183,6 +195,15 @@ def parse_args(argv=None):
         ),
     )
 
+    parser.add_argument(
+        '--rviz-config-file',
+        default=None,
+        help=(
+            'Optional RViz config file used by '
+            'visual frozen-policy evaluation.'
+        ),
+    )
+
     return parser.parse_args(argv)
 
 
@@ -250,6 +271,11 @@ def evaluation_config(
                 None,
             ),
         },
+        'rviz_config_file': getattr(
+            args,
+            'rviz_config_file',
+            None,
+        ),
         'simulation_command': list(
             simulation_command(
                 visual=bool(
@@ -272,6 +298,11 @@ def evaluation_config(
                 yaw=getattr(
                     args,
                     'yaw',
+                    None,
+                ),
+                rviz_config_file=getattr(
+                    args,
+                    'rviz_config_file',
                     None,
                 ),
             )
@@ -303,6 +334,11 @@ def make_evaluation_session(args):
                 yaw=getattr(
                     args,
                     'yaw',
+                    None,
+                ),
+                rviz_config_file=getattr(
+                    args,
+                    'rviz_config_file',
                     None,
                 ),
             )

@@ -468,3 +468,57 @@ def test_config_records_initial_pose():
         ]
         is False
     )
+
+
+
+def test_parse_rviz_config_file_argument():
+    args = parse_args(
+        [
+            '--checkpoint',
+            '/tmp/model.zip',
+            '--episodes',
+            '1',
+            '--run-id',
+            'presentation_probe',
+            '--run-kind',
+            'diagnostic',
+            '--visual',
+            '--rviz-config-file',
+            '/tmp/demo.rviz',
+        ]
+    )
+
+    assert (
+        args.rviz_config_file
+        == '/tmp/demo.rviz'
+    )
+
+
+def test_visual_simulation_command_appends_rviz_config():
+    command = simulation_command(
+        visual=True,
+        rviz_config_file=(
+            '/tmp/demo.rviz'
+        ),
+    )
+
+    assert (
+        'rviz_config_file:=/tmp/demo.rviz'
+        in command
+    )
+
+
+def test_headless_simulation_command_ignores_rviz_config():
+    command = simulation_command(
+        visual=False,
+        rviz_config_file=(
+            '/tmp/demo.rviz'
+        ),
+    )
+
+    assert not any(
+        item.startswith(
+            'rviz_config_file:='
+        )
+        for item in command
+    )
